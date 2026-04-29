@@ -1,6 +1,6 @@
 'use server';
 import { db } from '@/db';
-import { employees } from '@/db/schema';
+import { employees, salaries } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { signOut } from '@/auth';
@@ -38,5 +38,31 @@ export async function addEmployee(prevState: any, formData: FormData) {
       return { error: 'An employee with this email already exists.' };
     }
     return { error: 'Failed to save employee to the database.' };
+  }
+}
+export async function assignSalary(prevState: any, formData: FormData) {
+  const employeeId = formData.get('employeeId') as string;
+  const baseAmount = parseFloat(formData.get('baseAmount') as string);
+  const bonus = parseFloat(formData.get('bonus') as string) || 0;
+  const effectiveDate = formData.get('effectiveDate') as string;
+
+  if (!employeeId || isNaN(baseAmount) || !effectiveDate) {
+    return { error: 'Missing required fields.' };
+  }
+
+  try {
+    await db.insert(salaries).values({
+      employeeId,
+      // Multiply by 100 to store as cents (e.g. $75,000.00 -> 7500000)
+      baseAmount: Math.round(baseAmount * 100), 
+      bonus: Math.round(bonus * 100),
+      effectiveDate: new Date(effectiveDate),
+    });
+
+    revalidatePath('/dashboard');
+    return { success: 'Salary assigned successfully!',timestamp: Date.now() };
+  } catch (error) {
+    console.error('Failed to assign salary:', error);
+    return { error: 'Failed to assign salary to the database.' };
   }
 }

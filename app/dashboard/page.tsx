@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AddEmployeeForm } from "./AddEmployeeForm";
+import { EmployeeView } from './EmployeeView';
+import { formatINR } from '@/lib/utils';
+import { AddEmployeeForm } from './AddEmployeeForm';
+import { AssignSalaryModal } from './AssignSalaryModal';
 
 export default async function DashboardPage() {
   // 1. Secure the route: Fetch session on the server
@@ -28,7 +31,7 @@ export default async function DashboardPage() {
       orderBy: [desc(employees.createdAt)],
       with: {
         salaries: {
-          orderBy: [desc(salaries.effectiveDate)],
+          orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],
         },
       },
     });
@@ -36,7 +39,7 @@ export default async function DashboardPage() {
     // Employee only sees their own salary history
     data = await db.query.salaries.findMany({
       where: eq(salaries.employeeId, id),
-      orderBy: [desc(salaries.effectiveDate)],
+      orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],
     });
   }
 
@@ -77,7 +80,7 @@ export default async function DashboardPage() {
 function AdminView({ employees }: { employees: any[] }) {
   return (
     <div className="space-y-8">
-      {/* Add Employee Form */}
+      {/* 1. The Add Employee Form */}
       <Card>
         <CardHeader>
           <CardTitle>Add New Employee</CardTitle>
@@ -86,41 +89,33 @@ function AdminView({ employees }: { employees: any[] }) {
           <AddEmployeeForm />
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-function EmployeeView({ salaries }: { salaries: any[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your Salary History</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {salaries.length > 0 ? (
-          <ul className="space-y-4">
-            {salaries.map((salary) => (
-              <li
-                key={salary.id}
-                className="flex justify-between border-b pb-2 last:border-0"
-              >
-                <span>
-                  {new Date(salary.effectiveDate).toLocaleDateString()}
-                </span>
-                <span className="font-medium">
-                  ${(salary.baseAmount / 100).toLocaleString()}
-                  {salary.bonus > 0 &&
-                    ` (+ $${(salary.bonus / 100).toLocaleString()} bonus)`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">
-            No salary history available.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      {/* 2. The Employee Grid (This was missing!) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {employees.map((emp) => (
+          <Card key={emp.id}>
+            <CardHeader>
+              <CardTitle className="text-lg">{emp.name}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {emp.email} • <span className="capitalize">{emp.role}</span>
+              </p>
+            </CardHeader>
+            <CardContent>
+              {emp.salaries && emp.salaries.length > 0 ? (
+                <div>
+                  <p className="text-2xl font-bold">
+                    {formatINR(emp.salaries[0].baseAmount)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Current Base Salary</p>
+                </div>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">No salary data</p>
+              )}
+              <AssignSalaryModal employeeId={emp.id} employeeName={emp.name} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }
