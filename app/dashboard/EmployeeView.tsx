@@ -10,8 +10,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatINR } from '@/lib/utils';
+import { type InferSelectModel } from 'drizzle-orm';
+import { salaries as salariesSchema } from '@/db/schema';
 
-export function EmployeeView({ salaries }: { salaries: any[] }) {
+type Salary = InferSelectModel<typeof salariesSchema>;
+
+export function EmployeeView({ salaries }: { salaries: Salary[] }) {
   // State to hold the current sorting order
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
@@ -31,7 +35,7 @@ export function EmployeeView({ salaries }: { salaries: any[] }) {
         {/* The Filter Menu */}
         <Select 
           value={sortOrder} 
-          onValueChange={(value: 'desc' | 'asc') => setSortOrder(value)}
+          onValueChange={(value) => {if (value) setSortOrder(value as 'desc' | 'asc');}}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Sort by Date" />

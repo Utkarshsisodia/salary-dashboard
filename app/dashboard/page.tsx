@@ -3,15 +3,20 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { salaries, employees } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { logOut, addEmployee } from "./actions";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { logOut} from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeView } from './EmployeeView';
 import { formatINR } from '@/lib/utils';
 import { AddEmployeeForm } from './AddEmployeeForm';
 import { AssignSalaryModal } from './AssignSalaryModal';
+
+import { type InferSelectModel } from 'drizzle-orm';
+import { employees as employeesSchema, salaries as salariesSchema } from '@/db/schema';
+
+type Salary = InferSelectModel<typeof salariesSchema>;
+type Employee = InferSelectModel<typeof employeesSchema>;
+type EmployeeWithSalaries = Employee & { salaries: Salary[] };
 
 export default async function DashboardPage() {
   // 1. Secure the route: Fetch session on the server
@@ -38,7 +43,7 @@ export default async function DashboardPage() {
   } else {
     // Employee only sees their own salary history
     data = await db.query.salaries.findMany({
-      where: eq(salaries.employeeId, id),
+      where: eq(salaries.employeeId, id as string),
       orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],
     });
   }
@@ -77,7 +82,7 @@ export default async function DashboardPage() {
 
 // --- Sub-components (Kept in same file for rapid prototyping) ---
 
-function AdminView({ employees }: { employees: any[] }) {
+function AdminView({ employees }: { employees: EmployeeWithSalaries[] }) {
   return (
     <div className="space-y-8">
       {/* 1. The Add Employee Form */}
