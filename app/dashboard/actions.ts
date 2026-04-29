@@ -8,7 +8,7 @@ import { signOut } from '@/auth';
 export async function logOut() {
   await signOut({ redirectTo: '/login' });
 }
-export async function addEmployee(prevState: any, formData: FormData) {
+export async function addEmployee(prevState: unknown, formData: FormData) {
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
   const rawPassword = formData.get('password') as string;
@@ -32,7 +32,7 @@ export async function addEmployee(prevState: any, formData: FormData) {
     revalidatePath('/dashboard');
     return { success: 'Employee created successfully!' };
     
-  } catch (error: any) {
+  } catch (error:any) {
     // 23505 is the Postgres error code for a Unique Violation
     if (error.code === '23505') {
       return { error: 'An employee with this email already exists.' };
@@ -40,7 +40,7 @@ export async function addEmployee(prevState: any, formData: FormData) {
     return { error: 'Failed to save employee to the database.' };
   }
 }
-export async function assignSalary(prevState: any, formData: FormData) {
+export async function assignSalary(prevState: unknown, formData: FormData) {
   const employeeId = formData.get('employeeId') as string;
   const baseAmount = parseFloat(formData.get('baseAmount') as string);
   const bonus = parseFloat(formData.get('bonus') as string) || 0;

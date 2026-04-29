@@ -1,102 +1,43 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { db } from "@/db";
-import { salaries, employees } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { logOut } from "./actions";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmployeeView } from "./EmployeeView";
-import { formatINR } from "@/lib/utils";
-import { AddEmployeeForm } from "./AddEmployeeForm";
-import { AssignSalaryModal } from "./AssignSalaryModal";
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
-import { AdminSidebar } from "./AdminSidebar";
-
-import { type InferSelectModel } from "drizzle-orm";
-import {
-  employees as employeesSchema,
-  salaries as salariesSchema,
-} from "@/db/schema";
+import { auth } from '@/auth';
+import { db } from '@/db';
+import { eq, desc, type InferSelectModel } from 'drizzle-orm';
+import { employees as employeesSchema, salaries as salariesSchema } from '@/db/schema';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmployeeView } from './EmployeeView';
+import { formatINR } from '@/lib/utils';
+import { AddEmployeeForm } from './AddEmployeeForm';
+import { AssignSalaryModal } from './AssignSalaryModal';
 
 type Salary = InferSelectModel<typeof salariesSchema>;
 type Employee = InferSelectModel<typeof employeesSchema>;
 type EmployeeWithSalaries = Employee & { salaries: Salary[] };
 
 export default async function DashboardPage() {
-  // 1. Secure the route: Fetch session on the server
   const session = await auth();
+  const { id, role } = session!.user;
 
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const { id, name, role } = session.user;
-
-  // 2. Fetch data based on role
   let data;
-  if (role === "admin") {
-    // Admin sees everyone and their associated salaries
+  if (role === 'admin') {
     data = await db.query.employees.findMany({
-      orderBy: [desc(employees.createdAt)],
+      orderBy: [desc(employeesSchema.createdAt)],
+      limit: 3,
       with: {
         salaries: {
-          orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],
+          orderBy: [desc(salariesSchema.effectiveDate), desc(salariesSchema.createdAt)],
         },
       },
     });
   } else {
-    // Employee only sees their own salary history
     data = await db.query.salaries.findMany({
-      where: eq(salaries.employeeId, id as string),
-      orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],
+      where: eq(salariesSchema.employeeId, id as string),
+      orderBy: [desc(salariesSchema.effectiveDate), desc(salariesSchema.createdAt)],
     });
   }
 
-  return (
-    <SidebarProvider>
-      {role === "admin" && <AdminSidebar />}
-
-      <SidebarInset>
-        <div className="flex-1 min-h-screen bg-zinc-50 p-8 w-full">
-          <div className="mx-auto max-w-5xl space-y-6">
-            <header className="flex items-center justify-between pb-4 border-b">
-              <div className="flex items-center gap-4">
-                {role === "admin" && <SidebarTrigger />}
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight">
-                    Dashboard
-                  </h1>
-                  <p className="text-muted-foreground">Welcome back, {name}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-800 border">
-                  {role.toUpperCase()}
-                </span>
-                <form action={logOut}>
-                  <Button variant="outline" size="sm" type="submit">
-                    Sign Out
-                  </Button>
-                </form>
-              </div>
-            </header>
-
-            <main>
-              {role === "admin" ? (
-                <AdminView employees={data as any} />
-              ) : (
-                <EmployeeView salaries={data as any} />
-              )}
-            </main>
-          </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+  return role === 'admin' ? (
+    <AdminView employees={data as EmployeeWithSalaries[]} />
+  ) : (
+    <EmployeeView salaries={data as Salary[]} />
   );
 }
 
