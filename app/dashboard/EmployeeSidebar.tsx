@@ -1,8 +1,9 @@
+// app/dashboard/EmployeeSidebar.tsx
 'use client';
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Users, LayoutDashboard, Settings, Banknote, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, FileText, Landmark, UserCircle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,31 +16,27 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  // Notice we now point to real URLs
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Employees", url: "/dashboard/employees", icon: Users },
-  { title: "Payroll", url: "/dashboard/payroll", icon: Banknote },
-  { title: "Audit Logs", url: "/dashboard/audit", icon: ShieldAlert },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings },
+  { title: "My Payslips", url: "/dashboard/payslips", icon: FileText },
+  { title: "Tax Declarations", url: "/dashboard/tax-declarations", icon: Landmark },
+  { title: "Profile & Bank", url: "/dashboard/profile", icon: UserCircle },
 ];
 
-export function AdminSidebar() {
+export function EmployeeSidebar() {
   const pathname = usePathname();
 
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Admin Controls</SidebarGroupLabel>
+          <SidebarGroupLabel>Self Service</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                // Determine if this is the currently active page
                 const isActive = pathname === item.url;
                 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    {/* If active, pointer-events-none disables clicking, and opacity-50 greys it out */}
                     <Link 
                       href={item.url} 
                       className={`w-full block transition-opacity ${isActive ? 'pointer-events-none opacity-50' : 'hover:opacity-80'}`}

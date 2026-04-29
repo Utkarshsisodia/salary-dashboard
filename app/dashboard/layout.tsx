@@ -1,31 +1,44 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
-import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
-import { AdminSidebar } from './AdminSidebar';
-import { logOut } from './actions';
-import { Button } from '@/components/ui/button';
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+} from "@/components/ui/sidebar";
+import { AdminSidebar } from "./AdminSidebar";
+import { logOut } from "./actions";
+import { Button } from "@/components/ui/button";
+import { EmployeeSidebar } from "./EmployeeSidebar";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth();
-  
+
   if (!session?.user) {
-    redirect('/login');
+    redirect("/login");
   }
-  
+
   const { role, name } = session.user;
 
   return (
     <SidebarProvider>
-      {role === 'admin' && <AdminSidebar />}
+      {/* Conditionally render the correct sidebar */}
+      {role === "admin" ? <AdminSidebar /> : <EmployeeSidebar />}
+
       <SidebarInset>
         <div className="flex-1 min-h-screen bg-zinc-50 p-8 w-full">
           <div className="mx-auto max-w-5xl space-y-6">
-            
             <header className="flex items-center justify-between pb-4 border-b">
               <div className="flex items-center gap-4">
-                {role === 'admin' && <SidebarTrigger />}
+                {/* Ensure the trigger shows for both roles on mobile/desktop */}
+                <SidebarTrigger />
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">Company Portal</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    Company Portal
+                  </h1>
                   <p className="text-muted-foreground">Welcome back, {name}</p>
                 </div>
               </div>
@@ -34,16 +47,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   {role.toUpperCase()}
                 </span>
                 <form action={logOut}>
-                  <Button variant="outline" size="sm" type="submit">Sign Out</Button>
+                  <Button variant="outline" size="sm" type="submit">
+                    Sign Out
+                  </Button>
                 </form>
               </div>
             </header>
 
             {/* This is where the specific pages will render! */}
-            <main>
-              {children}
-            </main>
-
+            <main>{children}</main>
           </div>
         </div>
       </SidebarInset>

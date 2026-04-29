@@ -47,3 +47,23 @@ export const salariesRelations = relations(salaries, ({ one }) => ({
     references: [employees.id],
   }),
 }));
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  // The person who performed the action
+  actorId: uuid('actor_id')
+    .references(() => employees.id, { onDelete: 'set null' }), 
+  // e.g., 'CREATE_EMPLOYEE', 'UPDATE_SALARY', 'RUN_PAYROLL'
+  actionType: varchar('action_type', { length: 50 }).notNull(),
+  // e.g., 'Admin User assigned a ₹7,50,000 base salary to John Doe'
+  description: text('description').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Add the relations so we can fetch the actor's name easily
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  actor: one(employees, {
+    fields: [auditLogs.actorId],
+    references: [employees.id],
+  }),
+}));
