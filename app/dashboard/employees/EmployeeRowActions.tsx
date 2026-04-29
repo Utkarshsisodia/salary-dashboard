@@ -1,4 +1,4 @@
-"use client";
+// app/dashboard/employees/EmployeeRowActions.tsx
 
 import { MoreHorizontal, UserPen } from "lucide-react";
 import {
@@ -35,13 +35,19 @@ export function EmployeeRowActions({
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              {/* The DialogTrigger natively connects to the Dialog wrapper inside AssignSalaryModal! */}
-              <DropdownMenuItem asChild>
-                <DialogTrigger className="w-full cursor-pointer flex items-center">
-                  <UserPen className="mr-2 h-4 w-4" />
-                  Update Salary
-                </DialogTrigger>
+              {/* FIX: Add nativeButton={false} to satisfy DialogTrigger's strictness */}
+              <DropdownMenuItem 
+                render={
+                  <DialogTrigger 
+                    nativeButton={false}
+                    render={<div className="w-full cursor-pointer flex items-center" />} 
+                  />
+                }
+              >
+                <UserPen className="mr-2 h-4 w-4" />
+                Update Salary
               </DropdownMenuItem>
+              
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -23,13 +23,19 @@ export function AssignSalaryModal({
   trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, isPending] = useActionState(assignSalary, null);
+  const [state, formAction, isPending] = useActionState(
+    async (prevState: unknown, formData: FormData) => {
+      const result = await assignSalary(prevState, formData);
 
-  useEffect(() => {
-    if (state?.timestamp) {
-      setOpen(false);
-    }
-  }, [state?.timestamp]);
+      // If the server action returns success, close the modal
+      if (result?.success) {
+        setOpen(false);
+      }
+
+      return result;
+    },
+    null,
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
