@@ -12,9 +12,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/lib/utils";
-import { EmployeeRowActions } from './EmployeeRowActions';
+import { EmployeeRowActions } from "./EmployeeRowActions";
+import { AssignSalaryModal } from "../AssignSalaryModal";
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage(props: {
+  searchParams: Promise<{ assignId?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const assignId = searchParams.assignId;
   // Fetch employees with their salaries, sorted by newest salary first
   const data = await db.query.employees.findMany({
     orderBy: [desc(employees.createdAt)],
@@ -25,62 +30,74 @@ export default async function EmployeesPage() {
     },
   });
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Employee Directory</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Current Salary</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((employee) => {
-              const currentSalary = employee.salaries?.[0];
+  const selectedEmployee = assignId
+    ? data.find((e) => e.id === assignId)
+    : null;
 
-              return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employee.email}</TableCell>
-                  <TableCell className="capitalize">
-                    {employee.role === "admin" ? (
-                      <Badge variant="destructive">Admin</Badge>
-                    ) : (
-                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
-                        Employee
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {currentSalary ? (
-                      <span className="font-semibold text-emerald-600">
-                        {formatINR(currentSalary.baseAmount)}
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 italic text-sm">
-                        Not Assigned
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <EmployeeRowActions 
-                      employeeId={employee.id} 
-                      employeeName={employee.name} 
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Employee Directory</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Current Salary</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((employee) => {
+                const currentSalary = employee.salaries?.[0];
+
+                return (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">
+                      {employee.name}
+                    </TableCell>
+                    <TableCell>{employee.email}</TableCell>
+                    <TableCell className="capitalize">
+                      {employee.role === "admin" ? (
+                        <Badge variant="destructive">Admin</Badge>
+                      ) : (
+                        <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
+                          Employee
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {currentSalary ? (
+                        <span className="font-semibold text-emerald-600">
+                          {formatINR(currentSalary.baseAmount)}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400 italic text-sm">
+                          Not Assigned
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <EmployeeRowActions employeeId={employee.id} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {/* 4. Render exactly ONE modal at the root of the page, outside the table */}
+      {selectedEmployee && (
+        <AssignSalaryModal
+          employeeId={selectedEmployee.id}
+          employeeName={selectedEmployee.name}
+        />
+      )}
+    </>
   );
 }

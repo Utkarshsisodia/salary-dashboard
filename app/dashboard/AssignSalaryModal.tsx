@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useActionState, useEffect } from "react";
+import { useState, useActionState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { assignSalary } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,26 +11,41 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger, // Make sure this is imported!
 } from "@/components/ui/dialog";
+
+type ActionState = {
+  error?: string;
+  success?: string;
+  timestamp?: number;
+} | null;
 
 export function AssignSalaryModal({
   employeeId,
   employeeName,
-  trigger, // ADDED: Accepts a custom trigger like our Dropdown Menu
 }: {
   employeeId: string;
   employeeName: string;
-  trigger?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const [state, formAction, isPending] = useActionState(
-    async (prevState: unknown, formData: FormData) => {
-      const result = await assignSalary(prevState, formData);
+  const router = useRouter();
+  const pathname = usePathname();
+  // Open by default since it only renders when the URL param is present
+  const [open, setOpen] = useState(true);
 
-      // If the server action returns success, close the modal
+  const handleClose = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      // Clear the query parameter without scrolling to the top of the page
+      router.push(pathname, { scroll: false });
+    }
+  };
+
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
+    async (prevState, formData) => {
+      // FIX: Cast the result here before trying to read .success
+      const result = (await assignSalary(prevState, formData)) as ActionState;
+
       if (result?.success) {
-        setOpen(false);
+        handleClose(false);
       }
 
       return result;
@@ -38,23 +54,8 @@ export function AssignSalaryModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {/* If a custom trigger is provided (like our Dropdown Menu), render it. 
-        Otherwise, render a standard button and open the modal manually via onClick! 
-      */}
-      {trigger ? (
-        trigger
-      ) : (
-        <Button
-          variant="outline"
-          className="w-full mt-4"
-          onClick={() => setOpen(true)}
-        >
-          Update Salary
-        </Button>
-      )}
-
-      <DialogContent className="sm:max-w-106.25">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Assign Salary to {employeeName}</DialogTitle>
         </DialogHeader>
