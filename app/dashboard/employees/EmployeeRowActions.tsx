@@ -11,6 +11,7 @@ export function EmployeeRowActions({
     <Button 
       variant="ghost" 
       size="icon-sm" // Note: icon-sm matches your button.tsx variants
+      nativeButton={false}
       render={
         <Link href={`?assignId=${employeeId}`} scroll={false}>
           <UserPen className="h-4 w-4" />

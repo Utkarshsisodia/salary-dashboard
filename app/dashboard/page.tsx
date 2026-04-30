@@ -113,6 +113,7 @@ function AdminView({ employees }: { employees: EmployeeWithSalaries[] }) {
               <Button
                 variant="outline"
                 className="w-full mt-4"
+                nativeButton={false}
                 render={
                   <Link href={`?assignId=${emp.id}`} scroll={false}>
                     Update Salary

@@ -8,35 +8,35 @@ import { revalidatePath } from "next/cache";
 import { signOut } from "@/auth";
 import { formatINR } from "@/lib/utils";
 import { withAdminAuth } from "@/lib/safe-action";
+import { parseWithZod } from "@conform-to/zod";
+import { addEmployeeSchema } from "./schemas";
 
 export async function logOut() {
   await signOut({ redirectTo: "/login" });
 }
 
+
 export const addEmployee = withAdminAuth(
   async (prevState: unknown, formData: FormData, session) => {
     const actorId = session.user.id;
-    const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
-    const rawPassword = formData.get("password") as string;
-    const role = formData.get("role") as "admin" | "employee";
 
-    if (!name || !email || !rawPassword || !role) {
-      return { error: "All fields are required." };
+    // 1. Automatically parse and validate the incoming FormData
+    const submission = parseWithZod(formData, { schema: addEmployeeSchema });
+
+    // 2. If validation fails, return the error states back to Conform
+    if (submission.status !== "success") {
+      return submission.reply();
     }
+
+    // 3. Destructure the strongly-typed, validated data
+    const { name, email, password: rawPassword, role } = submission.value;
 
     try {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(rawPassword, salt);
 
-      // Run both inserts within a transaction
       await db.batch([
-        db.insert(employees).values({
-          name,
-          email,
-          passwordHash,
-          role,
-        }),
+        db.insert(employees).values({ name, email, passwordHash, role }),
         db.insert(auditLogs).values({
           actorId,
           actionType: "CREATE_EMPLOYEE",
@@ -45,14 +45,24 @@ export const addEmployee = withAdminAuth(
       ]);
 
       revalidatePath("/dashboard");
-      return { success: "Employee created successfully!" };
+
+      // 4. Return success to reset the form, attaching a custom success message
+      return {
+        ...submission.reply({ resetForm: true }),
+        successMessage: "Employee created successfully!",
+      };
     } catch (error: unknown) {
       const dbError = error as { code?: string };
       if (dbError.code === "23505") {
-        return { error: "An employee with this email already exists." };
+        // Form-level error for duplicate emails
+        return submission.reply({
+          formErrors: ["An employee with this email already exists."],
+        });
       }
       console.error("Failed to add employee:", error);
-      return { error: "Failed to save employee to the database." };
+      return submission.reply({
+        formErrors: ["Failed to save employee to the database."],
+      });
     }
   },
 );
