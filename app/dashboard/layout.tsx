@@ -1,14 +1,9 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
-import { AdminSidebar } from "./AdminSidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar"; // <-- Replaced imports
 import { logOut } from "./actions";
 import { Button } from "@/components/ui/button";
-import { EmployeeSidebar } from "./EmployeeSidebar";
 
 export default async function DashboardLayout({
   children,
@@ -25,8 +20,8 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      {/* Conditionally render the correct sidebar */}
-      {role === "admin" ? <AdminSidebar /> : <EmployeeSidebar />}
+      {/* Conditionally render using a single component */}
+      <AppSidebar role={role} />
 
       <SidebarInset>
         <div className="flex-1 min-h-screen bg-zinc-50 p-8 w-full">

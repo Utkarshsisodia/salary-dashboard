@@ -1,4 +1,3 @@
-// app/dashboard/actions.ts
 'use server';
 
 import { db } from '@/db';
@@ -6,18 +5,16 @@ import { employees, salaries, auditLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
-import { signOut, auth } from '@/auth';
-import { formatINR } from '@/lib/utils'; // For nicely formatted log descriptions
+import { signOut } from '@/auth';
+import { formatINR } from '@/lib/utils';
+import { withAdminAuth } from '@/lib/safe-action';
 
 export async function logOut() {
   await signOut({ redirectTo: '/login' });
 }
 
-export async function addEmployee(prevState: unknown, formData: FormData) {
-  // 1. Get the current logged-in admin's session
-  const session = await auth();
-  const actorId = session?.user?.id;
-
+export const addEmployee = withAdminAuth(async (prevState: unknown, formData: FormData, session) => {
+  const actorId = session.user.id;
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
   const rawPassword = formData.get('password') as string;
@@ -31,21 +28,21 @@ export async function addEmployee(prevState: unknown, formData: FormData) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(rawPassword, salt);
 
-    await db.insert(employees).values({
-      name,
-      email,
-      passwordHash,
-      role,
-    });
+    // Run both inserts within a transaction
+    await db.transaction(async (tx) => {
+      await tx.insert(employees).values({
+        name,
+        email,
+        passwordHash,
+        role,
+      });
 
-    // --- NEW: Write to the Audit Log ---
-    if (actorId) {
-      await db.insert(auditLogs).values({
+      await tx.insert(auditLogs).values({
         actorId,
         actionType: 'CREATE_EMPLOYEE',
         description: `Created a new ${role} account for ${name} (${email}).`,
       });
-    }
+    });
 
     revalidatePath('/dashboard');
     return { success: 'Employee created successfully!' };
@@ -55,15 +52,13 @@ export async function addEmployee(prevState: unknown, formData: FormData) {
     if (dbError.code === '23505') {
       return { error: 'An employee with this email already exists.' };
     }
+    console.error('Failed to add employee:', error);
     return { error: 'Failed to save employee to the database.' };
   }
-}
+});
 
-export async function assignSalary(prevState: unknown, formData: FormData) {
-  // 1. Get the current logged-in admin's session
-  const session = await auth();
-  const actorId = session?.user?.id;
-
+export const assignSalary = withAdminAuth(async (prevState: unknown, formData: FormData, session) => {
+  const actorId = session.user.id;
   const employeeId = formData.get('employeeId') as string;
   const baseAmount = parseFloat(formData.get('baseAmount') as string);
   const bonus = parseFloat(formData.get('bonus') as string) || 0;
@@ -77,29 +72,29 @@ export async function assignSalary(prevState: unknown, formData: FormData) {
     const baseInCents = Math.round(baseAmount * 100);
     const bonusInCents = Math.round(bonus * 100);
 
-    await db.insert(salaries).values({
-      employeeId,
-      baseAmount: baseInCents, 
-      bonus: bonusInCents,
-      effectiveDate: new Date(effectiveDate),
-    });
+    // Run salary insertion and audit logging within a transaction
+    await db.transaction(async (tx) => {
+      await tx.insert(salaries).values({
+        employeeId,
+        baseAmount: baseInCents, 
+        bonus: bonusInCents,
+        effectiveDate: new Date(effectiveDate),
+      });
 
-    // --- NEW: Write to the Audit Log ---
-    if (actorId) {
-      // Fetch the employee's name so our log description is human-readable
-      const targetEmployee = await db.query.employees.findFirst({
+      // Must use 'tx' to query within the transaction boundary
+      const targetEmployee = await tx.query.employees.findFirst({
         where: eq(employees.id, employeeId),
         columns: { name: true },
       });
 
       if (targetEmployee) {
-        await db.insert(auditLogs).values({
+        await tx.insert(auditLogs).values({
           actorId,
           actionType: 'UPDATE_SALARY',
           description: `Assigned a base salary of ${formatINR(baseInCents)} with a ${formatINR(bonusInCents)} bonus to ${targetEmployee.name}.`,
         });
       }
-    }
+    });
 
     revalidatePath('/dashboard');
     return { success: 'Salary assigned successfully!', timestamp: Date.now() };
@@ -107,4 +102,4 @@ export async function assignSalary(prevState: unknown, formData: FormData) {
     console.error('Failed to assign salary:', error);
     return { error: 'Failed to assign salary to the database.' };
   }
-}
+});

@@ -38,14 +38,14 @@ export function PayrollActionButtons({ data }: { data: PayrollData }) {
     const rows = data.map((emp) => {
       const monthlyBase = emp.baseAmount / 12;
       // We must wrap values in quotes so the commas in formatINR don't break the CSV columns
-      const quote = (val: string) => `"${val}"`;
+      const sanitize = (val: string) => `"${val.replace(/"/g, '""')}"`;
 
       return [
-        quote(emp.name),
-        quote(emp.email),
-        quote(formatINR(emp.baseAmount)),
-        quote(formatINR(emp.bonus)),
-        quote(formatINR(monthlyBase)),
+        sanitize(emp.name),
+        sanitize(emp.email),
+        sanitize(formatINR(emp.baseAmount)),
+        sanitize(formatINR(emp.bonus)),
+        sanitize(formatINR(monthlyBase)),
       ].join(",");
     });
 
