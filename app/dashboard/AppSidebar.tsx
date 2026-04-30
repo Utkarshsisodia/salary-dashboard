@@ -1,18 +1,27 @@
 // app/dashboard/AppSidebar.tsx
-'use client';
+"use client";
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { 
-  Users, LayoutDashboard, Settings, Banknote, ShieldAlert, 
-  FileText, Landmark, UserCircle 
+import {
+  Users,
+  LayoutDashboard,
+  Settings,
+  Banknote,
+  ShieldAlert,
+  Clock,
 } from "lucide-react";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, 
-  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-// Configuration objects replace redundant component trees
 const NAV_CONFIG = {
   admin: {
     label: "Admin Controls",
@@ -22,20 +31,18 @@ const NAV_CONFIG = {
       { title: "Payroll", url: "/dashboard/payroll", icon: Banknote },
       { title: "Audit Logs", url: "/dashboard/audit", icon: ShieldAlert },
       { title: "Settings", url: "/dashboard/settings", icon: Settings },
-    ]
+    ],
   },
   employee: {
     label: "Self Service",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "My Payslips", url: "/dashboard/payslips", icon: FileText },
-      { title: "Tax Declarations", url: "/dashboard/tax-declarations", icon: Landmark },
-      { title: "Profile & Bank", url: "/dashboard/profile", icon: UserCircle },
-    ]
-  }
+      { title: "My Attendance", url: "/dashboard/attendance", icon: Clock },
+    ],
+  },
 };
 
-export function AppSidebar({ role }: { role: 'admin' | 'employee' }) {
+export function AppSidebar({ role }: { role: "admin" | "employee" }) {
   const pathname = usePathname();
   const { label, items } = NAV_CONFIG[role];
 
@@ -50,9 +57,9 @@ export function AppSidebar({ role }: { role: 'admin' | 'employee' }) {
                 const isActive = pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <Link 
-                      href={item.url} 
-                      className={`w-full block transition-opacity ${isActive ? 'pointer-events-none opacity-50' : 'hover:opacity-80'}`}
+                    <Link
+                      href={item.url}
+                      className={`w-full block transition-opacity ${isActive ? "pointer-events-none opacity-50" : "hover:opacity-80"}`}
                     >
                       <SidebarMenuButton isActive={isActive}>
                         <item.icon />
