@@ -1,4 +1,3 @@
-// app/dashboard/attendance/page.tsx
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { attendance } from "@/db/schema";
@@ -7,7 +6,7 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AttendanceActionCard } from "./AttendanceActionCard"; // Import our new client component
+import { AttendanceActionCard } from "./AttendanceActionCard";
 
 export default async function AttendancePage() {
   const session = await auth();
@@ -23,30 +22,26 @@ export default async function AttendancePage() {
 
   const todayRecord = records.find(r => r.date === todayStr);
 
-  // STRICT CALCULATION: Days Present requires >= 8 hours
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   
-  const validDaysPresent = records.filter(record => {
+  const totalDaysPresent = records.reduce((total, record) => {
     const d = new Date(record.date);
     const isThisMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     
-    // Must be in the current month AND have a clockOut time
-    if (!isThisMonth || !record.clockOut) return false;
+    if (!isThisMonth || !record.clockOut) return total;
     
-    // Calculate difference in hours
-    const diffMs = record.clockOut.getTime() - record.clockIn.getTime();
-    const diffHrs = diffMs / (1000 * 60 * 60);
+    const diffHrs = (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
     
-    // Only count if 8 or more hours were completed
-    return diffHrs >= 8;
-  });
+    if (diffHrs >= 8) return total + 1; 
+    if (diffHrs >= 4) return total + 0.5; 
+    return total; 
+  }, 0);
 
   return (
     <div className="space-y-6 pt-2">
       <div className="grid gap-6 md:grid-cols-2">
         
-        {/* Replace the old static card with our new interactive Client Component */}
         <AttendanceActionCard todayRecord={todayRecord} />
 
         <Card className="shadow-sm">
@@ -58,10 +53,9 @@ export default async function AttendancePage() {
           </CardHeader>
           <CardContent className="flex items-center justify-center h-40">
             <div className="text-center">
-               {/* Use the new strictly validated count */}
-               <p className="text-5xl font-bold text-primary">{validDaysPresent.length}</p>
-               <p className="text-sm font-medium text-muted-foreground mt-2">Valid Days Present</p>
-               <p className="text-xs text-muted-foreground mt-1">(8+ hours required)</p>
+               <p className="text-5xl font-bold text-primary">{totalDaysPresent}</p>
+               <p className="text-sm font-medium text-muted-foreground mt-2">Days Credited</p>
+               <p className="text-xs text-muted-foreground mt-1">(Includes half-days)</p>
             </div>
           </CardContent>
         </Card>
@@ -91,16 +85,18 @@ export default async function AttendancePage() {
                 </TableRow>
               ) : (
                 records.map((record) => {
-                  let statusElement = <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-200 shadow-none font-normal">Active</Badge>;
+                  let statusElement = <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 shadow-none font-normal">Active</Badge>;
                   
                   if (record.clockIn && record.clockOut) {
                     const diffMs = record.clockOut.getTime() - record.clockIn.getTime();
                     const diffHrs = diffMs / (1000 * 60 * 60);
                     
                     if (diffHrs >= 8) {
-                      statusElement = <span className="font-semibold text-emerald-600">{diffHrs.toFixed(1)}h (Present)</span>;
+                      statusElement = <span className="font-semibold text-emerald-600">{diffHrs.toFixed(1)}h (Full)</span>;
+                    } else if (diffHrs >= 4) {
+                      statusElement = <span className="font-semibold text-amber-500">{diffHrs.toFixed(1)}h (Half Day)</span>;
                     } else {
-                      statusElement = <span className="font-semibold text-rose-500">{diffHrs.toFixed(1)}h (Incomplete)</span>;
+                      statusElement = <span className="font-semibold text-rose-500">{diffHrs.toFixed(1)}h (No Credit)</span>;
                     }
                   }
 

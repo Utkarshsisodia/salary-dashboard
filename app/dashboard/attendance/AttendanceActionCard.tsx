@@ -1,4 +1,3 @@
-// app/dashboard/attendance/AttendanceActionCard.tsx
 'use client';
 
 import { useState, useTransition } from "react";
@@ -9,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Clock, LogIn, LogOut, AlertTriangle } from "lucide-react";
 import { toggleAttendance } from "./actions";
 
-// We define a simplified type for the record we pass from the server
 type TodayRecord = {
   id: string;
   clockIn: Date;
@@ -19,11 +17,11 @@ type TodayRecord = {
 export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord }) {
   const [isPending, startTransition] = useTransition();
   const [showWarning, setShowWarning] = useState(false);
+  const [warningType, setWarningType] = useState<"half" | "none">("none");
 
   const isClockedIn = todayRecord !== undefined && todayRecord.clockOut === null;
   const isShiftComplete = todayRecord !== undefined && todayRecord.clockOut !== null;
 
-  // The function that actually triggers the server action
   const executeToggle = () => {
     setShowWarning(false);
     startTransition(async () => {
@@ -31,20 +29,22 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
     });
   };
 
-  // Intercept the click to check hours
   const handleClockOutClick = () => {
     if (todayRecord?.clockIn) {
       const now = new Date();
       const clockInTime = new Date(todayRecord.clockIn);
       const diffHrs = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
 
-      if (diffHrs < 8) {
-        // Less than 8 hours? Show the warning modal.
+      if (diffHrs < 4) {
+        setWarningType("none");
+        setShowWarning(true);
+        return;
+      } else if (diffHrs < 8) {
+        setWarningType("half");
         setShowWarning(true);
         return;
       }
     }
-    // If >= 8 hours, just execute normally
     executeToggle();
   };
 
@@ -109,23 +109,26 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
         </CardContent>
       </Card>
 
-      {/* Early Clock Out Warning Modal */}
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose-600">
               <AlertTriangle className="h-5 w-5" />
-              Office Hours Not Completed
+              Early Clock Out Warning
             </DialogTitle>
-            <DialogDescription className="pt-2">
-              You have not completed the required 8 hours for today&apos;s shift. If you clock out now, this day <strong>will not be counted</strong> towards your total Days Present.
+            <DialogDescription className="pt-2 text-base text-zinc-800">
+              {warningType === "half" ? (
+                <span>You have worked less than 8 hours today. Clocking out now will mark this as a <strong className="text-amber-600">Half-Day</strong> (0.5 days credit).</span>
+              ) : (
+                <span>You have worked less than 4 hours today. Clocking out now means this day <strong className="text-rose-600">will not be counted</strong> towards your attendance.</span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button variant="outline" onClick={() => setShowWarning(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={executeToggle}>
+            <Button variant={warningType === "half" ? "default" : "destructive"} onClick={executeToggle}>
               Clock Out Anyway
             </Button>
           </DialogFooter>

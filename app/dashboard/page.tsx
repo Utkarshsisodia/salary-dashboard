@@ -4,12 +4,14 @@ import { eq, desc, type InferSelectModel } from "drizzle-orm";
 import {
   employees as employeesSchema,
   salaries as salariesSchema,
+  attendance as attendanceSchema,
 } from "@/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeView } from "./EmployeeView";
 import { formatINR } from "@/lib/utils";
 import { AddEmployeeForm } from "./AddEmployeeForm";
 import { AssignSalaryModal } from "./AssignSalaryModal";
+import { CurrentMonthSalary } from "./CurrentMonthSalary";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -66,16 +68,64 @@ export default async function DashboardPage(props: {
       </>
     );
   }
+  const salariesData = await db.query.salaries.findMany({
+    where: eq(salariesSchema.employeeId, id as string),
+    orderBy: [
+      desc(salariesSchema.effectiveDate),
+      desc(salariesSchema.createdAt),
+    ],
+  });
+  const attendanceData = await db.query.attendance.findMany({
+    where: eq(attendanceSchema.employeeId, id as string),
+  });
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  return <EmployeeView salaries={data as Salary[]} />;
+  let expectedWorkingDays = 0;
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(currentYear, currentMonth, i);
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      expectedWorkingDays++;
+    }
+  }
+  const validDaysPresent = attendanceData.reduce((total, record) => {
+    const d = new Date(record.date);
+    const isThisMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    
+    if (!isThisMonth || !record.clockOut) return total;
+    
+    const diffHrs = (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
+    
+    if (diffHrs >= 8) return total + 1;
+    if (diffHrs >= 4) return total + 0.5;
+    return total;
+  }, 0);
+  const currentSalary = salariesData[0];
+  const monthlyBase = currentSalary ? currentSalary.baseAmount / 12 : 0;
+  const dailyRate =
+    expectedWorkingDays > 0 ? monthlyBase / expectedWorkingDays : 0;
+  const estimatedPayout = Math.min(monthlyBase, validDaysPresent * dailyRate);
+  return (
+    <div className="space-y-6">
+      <CurrentMonthSalary
+        monthlyBase={monthlyBase}
+        dailyRate={dailyRate}
+        expectedWorkingDays={expectedWorkingDays}
+        validDaysPresent={validDaysPresent}
+        estimatedPayout={estimatedPayout}
+      />
+
+      <EmployeeView salaries={salariesData as Salary[]} />
+    </div>
+  );
 }
 
-// --- Sub-components (Kept in same file for rapid prototyping) ---
 
 function AdminView({ employees }: { employees: EmployeeWithSalaries[] }) {
   return (
     <div className="space-y-8">
-      {/* 1. The Add Employee Form */}
       <Card>
         <CardHeader>
           <CardTitle>Add New Employee</CardTitle>
@@ -85,7 +135,6 @@ function AdminView({ employees }: { employees: EmployeeWithSalaries[] }) {
         </CardContent>
       </Card>
 
-      {/* 2. The Employee Grid (This was missing!) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {employees.map((emp) => (
           <Card key={emp.id}>
