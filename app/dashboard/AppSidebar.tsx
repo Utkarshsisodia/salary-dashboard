@@ -9,7 +9,7 @@ import {
   Settings,
   Banknote,
   ShieldAlert,
-  Clock,
+  Clock, UserCircle
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +38,7 @@ const NAV_CONFIG = {
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "My Attendance", url: "/dashboard/attendance", icon: Clock },
+      { title: "My Profile", url: "/dashboard/profile", icon: UserCircle },
     ],
   },
 };
