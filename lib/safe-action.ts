@@ -1,23 +1,34 @@
+// lib/safe-action.ts
 import { auth } from '@/auth';
-import { Session } from 'next-auth';
+import { headers } from 'next/headers';
 
-// 1. Use a generic type <T> to represent the return state
+// Define the shape of the session we expect from Better Auth
+type SessionContext = {
+  user: {
+    id: string;
+    role: string;
+    name: string;
+    email: string;
+  };
+};
+
 type ActionCallback<T> = (
   prevState: T, 
   formData: FormData, 
-  session: Session 
+  session: SessionContext
 ) => Promise<T>;
 
-// 2. Pass the generic <T> down to the wrapper function
 export function withAdminAuth<T>(action: ActionCallback<T>) {
   return async (prevState: T, formData: FormData): Promise<T> => {
-    const session = await auth();
+    const session = await auth.api.getSession({
+      headers: await headers()
+    });
 
     if (!session?.user || session.user.role !== 'admin') {
-      // Cast the error object to T so TypeScript accepts it as a valid return state
       return { error: 'Unauthorized: Admin privileges required.' } as T;
     }
 
-    return action(prevState, formData, session);
+    // Cast the session to our expected context
+    return action(prevState, formData, session as SessionContext);
   };
 }

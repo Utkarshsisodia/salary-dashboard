@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { employees, salaries } from "@/db/schema";
+import { user, salaries } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,8 +21,8 @@ export default async function EmployeesPage(props: {
   const searchParams = await props.searchParams;
   const assignId = searchParams.assignId;
   // Fetch employees with their salaries, sorted by newest salary first
-  const data = await db.query.employees.findMany({
-    orderBy: [desc(employees.createdAt)],
+  const data = await db.query.user.findMany({
+    orderBy: [desc(user.createdAt)],
     with: {
       salaries: {
         orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],

@@ -1,8 +1,10 @@
+// app/dashboard/page.tsx
 import { auth } from "@/auth";
+import { headers } from "next/headers";
 import { db } from "@/db";
 import { eq, desc, type InferSelectModel } from "drizzle-orm";
 import {
-  employees as employeesSchema,
+  user as userSchema, // <-- Replaced employees with user
   salaries as salariesSchema,
   attendance as attendanceSchema,
 } from "@/db/schema";
@@ -16,20 +18,26 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 type Salary = InferSelectModel<typeof salariesSchema>;
-type Employee = InferSelectModel<typeof employeesSchema>;
+type Employee = InferSelectModel<typeof userSchema>; // <-- Updated here
 type EmployeeWithSalaries = Employee & { salaries: Salary[] };
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ assignId?: string }>;
 }) {
   const searchParams = await props.searchParams;
-  const session = await auth();
+
+  // Better Auth pattern
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
   const { id, role } = session!.user;
 
   let data;
   if (role === "admin") {
-    data = await db.query.employees.findMany({
-      orderBy: [desc(employeesSchema.createdAt)],
+    data = await db.query.user.findMany({
+      // <-- Updated here
+      orderBy: [desc(userSchema.createdAt)], // <-- Updated here
       limit: 3,
       with: {
         salaries: {
@@ -92,12 +100,14 @@ export default async function DashboardPage(props: {
   }
   const validDaysPresent = attendanceData.reduce((total, record) => {
     const d = new Date(record.date);
-    const isThisMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    
+    const isThisMonth =
+      d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+
     if (!isThisMonth || !record.clockOut) return total;
-    
-    const diffHrs = (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
-    
+
+    const diffHrs =
+      (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
+
     if (diffHrs >= 8) return total + 1;
     if (diffHrs >= 4) return total + 0.5;
     return total;
@@ -121,7 +131,6 @@ export default async function DashboardPage(props: {
     </div>
   );
 }
-
 
 function AdminView({ employees }: { employees: EmployeeWithSalaries[] }) {
   return (

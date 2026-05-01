@@ -1,6 +1,6 @@
 // app/dashboard/payroll/page.tsx
 import { db } from "@/db";
-import { employees, salaries } from "@/db/schema";
+import { user, salaries } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { 
   Card, 
@@ -25,7 +25,7 @@ import { Calculator, ReceiptText } from "lucide-react";
 import { PayrollActionButtons } from "./PayrollActionButtons";
 
 export default async function PayrollPage() {
-  const data = await db.query.employees.findMany({
+  const data = await db.query.user.findMany({
     with: {
       salaries: {
         orderBy: [desc(salaries.effectiveDate), desc(salaries.createdAt)],

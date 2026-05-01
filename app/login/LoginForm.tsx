@@ -1,7 +1,9 @@
+// app/login/LoginForm.tsx
 'use client';
 
-import { useActionState } from 'react';
-import { authenticate } from './actions';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,32 +14,51 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-// 1. Import your new grid component
 import { FlickeringGrid } from '@/components/ui/flickering-grid';
 
 export default function LoginForm() {
-  const [errorMessage, formAction, isPending] = useActionState(
-    authenticate,
-    undefined
-  );
+  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsPending(true);
+    setErrorMessage("");
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { error } = await authClient.signIn.email({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErrorMessage(error.message || "Invalid credentials.");
+      setIsPending(false);
+    } else {
+      // Better Auth automatically set the secure HTTP-only cookie.
+      // Now we just push them to the dashboard!
+      router.push("/dashboard");
+      router.refresh(); // Force Next.js to re-evaluate the layout auth check
+    }
+  };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      
-      {/* 2. Position the grid absolutely behind the content */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <FlickeringGrid
           className="w-full h-full"
           squareSize={4}
           gridGap={6}
-          // Using a soft zinc-400 tone to match the Luma style
           color="rgb(161, 161, 170)" 
           maxOpacity={0.15}
           flickerChance={0.1}
         />
       </div>
 
-      {/* 3. Elevate the card with shadow-xl and a subtle translucent background */}
       <Card className="relative z-10 w-full max-w-sm shadow-xl border-zinc-200/60 bg-white/95 backdrop-blur-sm">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight">
@@ -48,7 +69,8 @@ export default function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="space-y-4">
+          {/* Swap action={...} for onSubmit={...} */}
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

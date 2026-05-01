@@ -5,9 +5,12 @@ import { db } from "@/db";
 import { attendance } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 export async function toggleAttendance() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+  headers: await headers()
+});
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const employeeId = session.user.id;

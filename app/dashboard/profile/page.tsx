@@ -1,7 +1,7 @@
 // app/dashboard/profile/page.tsx
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { employees } from "@/db/schema";
+import { user } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,18 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { UserCircle, Mail, Briefcase, Calendar, ShieldCheck } from "lucide-react";
 import { PasswordForm } from "./PasswordForm";
+import { headers } from "next/headers";
 
 export default async function ProfilePage() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+  headers: await headers()
+});
   if (!session?.user) redirect("/login");
 
-  const user = await db.query.employees.findFirst({
-    where: eq(employees.id, session.user.id),
+  const User = await db.query.user.findFirst({
+    where: eq(user.id, session.user.id),
   });
 
-  if (!user) redirect("/login");
+  if (!User) redirect("/login");
 
-  const initials = user.name
+  const initials = User.name
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -39,25 +42,25 @@ export default async function ProfilePage() {
             </div>
             
             <div className="space-y-1">
-              <h3 className="text-xl font-bold">{user.name}</h3>
+              <h3 className="text-xl font-bold">{User.name}</h3>
               <p className="text-muted-foreground text-sm flex items-center justify-center gap-1.5">
                 <Briefcase className="h-4 w-4" />
-                <span className="capitalize">{user.role}</span>
+                <span className="capitalize">{User.role}</span>
               </p>
             </div>
 
-            <Badge variant={user.role === 'admin' ? 'destructive' : 'default'} className="mt-2">
-              {user.role === 'admin' ? 'Admin Access' : 'Standard Access'}
+            <Badge variant={User.role === 'admin' ? 'destructive' : 'default'} className="mt-2">
+              {User.role === 'admin' ? 'Admin Access' : 'Standard Access'}
             </Badge>
 
             <div className="w-full pt-6 space-y-4 text-sm text-left">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate">{user.email}</span>
+                <span className="truncate">{User.email}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>Joined {new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
+                <span>Joined {new Date(User.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
               </div>
             </div>
           </CardContent>
@@ -73,11 +76,11 @@ export default async function ProfilePage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Full Legal Name</Label>
-                <Input value={user.name} readOnly className="bg-zinc-50 text-zinc-500" />
+                <Input value={User.name} readOnly className="bg-zinc-50 text-zinc-500" />
               </div>
               <div className="space-y-2">
                 <Label>Work Email</Label>
-                <Input value={user.email} readOnly className="bg-zinc-50 text-zinc-500" />
+                <Input value={User.email} readOnly className="bg-zinc-50 text-zinc-500" />
               </div>
               <div className="space-y-2">
                 <Label>Phone Number</Label>

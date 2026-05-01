@@ -1,16 +1,22 @@
 import { auth } from "@/auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+} from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar"; // <-- Replaced imports
-import { logOut } from "./actions";
-import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     redirect("/login");
@@ -21,7 +27,7 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       {/* Conditionally render using a single component */}
-      <AppSidebar role={role} />
+      <AppSidebar role={role as "admin" | "employee"} />
 
       <SidebarInset>
         <div className="flex-1 min-h-screen bg-zinc-50 p-8 w-full">
@@ -41,11 +47,7 @@ export default async function DashboardLayout({
                 <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-800 border">
                   {role.toUpperCase()}
                 </span>
-                <form action={logOut}>
-                  <Button variant="outline" size="sm" type="submit">
-                    Sign Out
-                  </Button>
-                </form>
+                <SignOutButton />
               </div>
             </header>
 
