@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { formatINR } from "@/lib/utils";
 import { withAdminAuth } from "@/lib/safe-action";
 import { parseWithZod } from "@conform-to/zod";
-import { addEmployeeSchema } from "./schemas";
+import { addEmployeeSchema, assignSalarySchema } from "./schemas";
 import { auth } from "@/auth"; // Added auth
 
 export const addEmployee = withAdminAuth(
@@ -68,14 +68,15 @@ export const addEmployee = withAdminAuth(
 export const assignSalary = withAdminAuth(
   async (prevState: unknown, formData: FormData, session) => {
     const actorId = session.user.id;
-    const employeeId = formData.get("employeeId") as string;
-    const baseAmount = parseFloat(formData.get("baseAmount") as string);
-    const bonus = parseFloat(formData.get("bonus") as string) || 0;
-    const effectiveDate = formData.get("effectiveDate") as string;
+    
+    // 1. Let Conform handle the parsing and validation
+    const submission = parseWithZod(formData, { schema: assignSalarySchema });
 
-    if (!employeeId || isNaN(baseAmount) || !effectiveDate) {
-      return { error: "Missing required fields." };
+    if (submission.status !== "success") {
+      return submission.reply(); // Conform handles the field errors automatically!
     }
+
+    const { employeeId, baseAmount, bonus, effectiveDate } = submission.value;
 
     try {
       const baseInCents = Math.round(baseAmount * 100);
@@ -86,7 +87,10 @@ export const assignSalary = withAdminAuth(
         columns: { name: true },
       });
 
-      if (!targetEmployee) return { error: "Employee not found." };
+      if (!targetEmployee) {
+          // Conform format for a general form error
+          return submission.reply({ formErrors: ["Employee not found."] }); 
+      }
 
       await db.batch([
         db.insert(salaries).values({
@@ -103,9 +107,15 @@ export const assignSalary = withAdminAuth(
       ]);
 
       revalidatePath("/dashboard");
-      return { success: "Salary assigned successfully!", timestamp: Date.now() };
+      
+      // Return a standard Conform success reply
+      return { 
+          ...submission.reply({ resetForm: true }),
+          successMessage: "Salary assigned successfully!" 
+      };
+      
     } catch (error) {
-      return { error: "Failed to assign salary to the database." };
+      return submission.reply({ formErrors: ["Failed to assign salary to the database."] });
     }
   },
 );

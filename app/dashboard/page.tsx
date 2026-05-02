@@ -18,8 +18,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 type Salary = InferSelectModel<typeof salariesSchema>;
-type Employee = InferSelectModel<typeof userSchema>; // <-- Updated here
-type EmployeeWithSalaries = Employee & { salaries: Salary[] };
+type SafeEmployee = Pick<InferSelectModel<typeof userSchema>, "id" | "name" | "email" | "role">;
+type EmployeeWithSalaries = SafeEmployee & { salaries: Salary[] };
 
 export default async function DashboardPage(props: {
   searchParams: Promise<{ assignId?: string }>;
@@ -35,7 +35,12 @@ export default async function DashboardPage(props: {
 
   if (role === "admin") {
     const adminData = await db.query.user.findMany({
-      // <-- Updated here
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
       orderBy: [desc(userSchema.createdAt)], // <-- Updated here
       limit: 3,
       with: {

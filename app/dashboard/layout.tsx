@@ -7,7 +7,6 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar"; // <-- Replaced imports
-import { SignOutButton } from "@/components/SignOutButton";
 
 export default async function DashboardLayout({
   children,
@@ -47,7 +46,6 @@ export default async function DashboardLayout({
                 <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-800 border">
                   {role.toUpperCase()}
                 </span>
-                <SignOutButton />
               </div>
             </header>
 
