@@ -9,8 +9,8 @@ import { headers } from "next/headers";
 
 export async function toggleAttendance() {
   const session = await auth.api.getSession({
-  headers: await headers()
-});
+    headers: await headers(),
+  });
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const employeeId = session.user.id;
@@ -29,11 +29,14 @@ export async function toggleAttendance() {
     });
 
     if (!existingRecord) {
-      await db.insert(attendance).values({
-        employeeId,
-        date: today,
-        clockIn: now,
-      });
+      await db
+        .insert(attendance)
+        .values({
+          employeeId,
+          date: today,
+          clockIn: now,
+        })
+        .onConflictDoNothing();
     } else if (!existingRecord.clockOut) {
       await db
         .update(attendance)

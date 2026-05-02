@@ -33,9 +33,8 @@ export default async function DashboardPage(props: {
 
   const { id, role } = session!.user;
 
-  let data;
   if (role === "admin") {
-    data = await db.query.user.findMany({
+    const adminData = await db.query.user.findMany({
       // <-- Updated here
       orderBy: [desc(userSchema.createdAt)], // <-- Updated here
       limit: 3,
@@ -48,18 +47,6 @@ export default async function DashboardPage(props: {
         },
       },
     });
-  } else {
-    data = await db.query.salaries.findMany({
-      where: eq(salariesSchema.employeeId, id as string),
-      orderBy: [
-        desc(salariesSchema.effectiveDate),
-        desc(salariesSchema.createdAt),
-      ],
-    });
-  }
-
-  if (role === "admin") {
-    const adminData = data as EmployeeWithSalaries[];
     const selectedEmployee = searchParams.assignId
       ? adminData.find((e) => e.id === searchParams.assignId)
       : null;

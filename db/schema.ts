@@ -7,7 +7,8 @@ import {
   timestamp,
   pgEnum,
   bigint,
-  boolean
+  boolean,
+  unique
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["admin", "employee"]);
@@ -79,7 +80,9 @@ export const attendance = pgTable("attendance", {
   clockIn: timestamp("clock_in").notNull(),
   clockOut: timestamp("clock_out"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+},(t)=> ({
+  unq: unique().on(t.employeeId, t.date)
+}));
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
