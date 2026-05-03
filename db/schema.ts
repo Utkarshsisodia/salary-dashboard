@@ -79,6 +79,8 @@ export const attendance = pgTable("attendance", {
   date: varchar("date", { length: 10 }).notNull(),
   clockIn: timestamp("clock_in").notNull(),
   clockOut: timestamp("clock_out"),
+  breakStart: timestamp("break_start"),
+  breakEnd: timestamp("break_end"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 },(t)=> ({
   unq: unique().on(t.employeeId, t.date)

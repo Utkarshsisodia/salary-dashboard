@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Clock, LogIn, LogOut, AlertTriangle } from "lucide-react";
-import { toggleAttendance } from "./actions";
+import { toggleAttendance, toggleBreak } from "./actions";
 
 type TodayRecord = {
   id: string;
   clockIn: Date;
   clockOut: Date | null;
+  breakStart: Date | null;
+  breakEnd: Date | null;
 } | undefined;
 
 export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord }) {
@@ -22,10 +24,20 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
   const isClockedIn = todayRecord !== undefined && todayRecord.clockOut === null;
   const isShiftComplete = todayRecord !== undefined && todayRecord.clockOut !== null;
 
+  // Forcing strict booleans with !! to prevent TS/JSX evaluation errors
+  const isOnBreak = !!(todayRecord?.breakStart && !todayRecord?.breakEnd);
+  const hasTakenBreak = !!(todayRecord?.breakStart && todayRecord?.breakEnd);
+
   const executeToggle = () => {
     setShowWarning(false);
     startTransition(async () => {
       await toggleAttendance();
+    });
+  };
+
+  const executeBreakToggle = () => {
+    startTransition(async () => {
+      await toggleBreak();
     });
   };
 
@@ -66,6 +78,8 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
               <p className="text-sm font-medium text-muted-foreground">Status</p>
               {isShiftComplete ? (
                  <Badge variant="secondary" className="mt-1 bg-zinc-200 text-zinc-700 hover:bg-zinc-200">Shift Complete</Badge>
+              ) : isOnBreak ? (
+                 <Badge variant="outline" className="mt-1 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">On Break</Badge>
               ) : isClockedIn ? (
                 <Badge variant="default" className="mt-1 bg-emerald-500 hover:bg-emerald-600">Active - Clocked In</Badge>
               ) : (
@@ -81,21 +95,45 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
             )}
           </div>
 
-          <div>
-            {isShiftComplete ? (
+          <div className="space-y-3">
+            {/* STATE 1: Shift is Complete */}
+            {isShiftComplete && (
               <Button disabled className="w-full h-12 text-lg rounded-xl" variant="secondary">
                 Completed for Today
               </Button>
-            ) : isClockedIn ? (
-              <Button 
-                onClick={handleClockOutClick} 
-                disabled={isPending}
-                className="w-full h-12 text-lg rounded-xl bg-rose-500 hover:bg-rose-600"
-              >
-                <LogOut className="mr-2 h-5 w-5" /> 
-                {isPending ? "Processing..." : "Clock Out"}
-              </Button>
-            ) : (
+            )}
+
+            {/* STATE 2: Clocked In (Either working or on break) */}
+            {!isShiftComplete && isClockedIn && (
+              <div className="grid grid-cols-2 gap-3">
+                {!hasTakenBreak ? (
+                  <Button 
+                    onClick={executeBreakToggle} 
+                    disabled={isPending}
+                    variant={isOnBreak ? "default" : "outline"}
+                    className={`h-12 rounded-xl border-2 ${isOnBreak ? 'bg-amber-500 hover:bg-amber-600 border-amber-600' : 'border-amber-500 text-amber-600 hover:bg-amber-50'}`}
+                  >
+                    {isPending ? "..." : (isOnBreak ? "End Break" : "Start Break")}
+                  </Button>
+                ) : (
+                  <Button disabled variant="outline" className="h-12 rounded-xl">
+                    Break Completed
+                  </Button>
+                )}
+
+                <Button 
+                  onClick={handleClockOutClick} 
+                  disabled={isPending || isOnBreak} 
+                  className="h-12 rounded-xl bg-rose-500 hover:bg-rose-600"
+                >
+                  <LogOut className="mr-2 h-4 w-4" /> 
+                  {isPending ? "..." : "Clock Out"}
+                </Button>
+              </div>
+            )}
+
+            {/* STATE 3: Not Clocked In Yet */}
+            {!isShiftComplete && !isClockedIn && (
               <Button 
                 onClick={executeToggle} 
                 disabled={isPending}

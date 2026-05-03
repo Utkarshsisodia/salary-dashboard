@@ -97,8 +97,15 @@ export default async function DashboardPage(props: {
 
     if (!isThisMonth || !record.clockOut) return total;
 
-    const diffHrs =
-      (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
+    // Calculate total ms between clock in and clock out
+    let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
+
+    // SUBTRACT BREAK TIME (if they took a complete break)
+    if (record.breakStart && record.breakEnd) {
+      diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
+    }
+
+    const diffHrs = diffMs / (1000 * 60 * 60);
 
     if (diffHrs >= 8) return total + 1;
     if (diffHrs >= 4) return total + 0.5;

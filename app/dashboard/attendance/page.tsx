@@ -57,8 +57,13 @@ export default async function AttendancePage() {
 
     if (!isThisMonth || !record.clockOut) return total;
 
-    const diffHrs =
-      (record.clockOut.getTime() - record.clockIn.getTime()) / (1000 * 60 * 60);
+    let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
+
+    if (record.breakStart && record.breakEnd) {
+      diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
+    }
+
+    const diffHrs = diffMs / (1000 * 60 * 60);
 
     if (diffHrs >= 8) return total + 1;
     if (diffHrs >= 4) return total + 0.5;
@@ -133,8 +138,13 @@ export default async function AttendancePage() {
                   );
 
                   if (record.clockIn && record.clockOut) {
-                    const diffMs =
-                      record.clockOut.getTime() - record.clockIn.getTime();
+                    let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
+                    
+                    // Subtract break time for the ledger status calculation
+                    if (record.breakStart && record.breakEnd) {
+                      diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
+                    }
+
                     const diffHrs = diffMs / (1000 * 60 * 60);
 
                     if (diffHrs >= 8) {
