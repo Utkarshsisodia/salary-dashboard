@@ -1,4 +1,3 @@
-// app/dashboard/payroll/page.tsx
 import { db } from "@/db";
 import { user, salaries } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -21,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/lib/utils";
 import { Calculator, ReceiptText } from "lucide-react";
 
-// Import your new Client Component
 import { PayrollActionButtons } from "./PayrollActionButtons";
 
 export default async function PayrollPage() {
@@ -36,7 +34,6 @@ export default async function PayrollPage() {
 
   const activePayroll = data.filter((emp) => emp.salaries.length > 0);
 
-  // Strip down the complex database objects into a simple array for the Client Component
   const payrollDataForClient = activePayroll.map(emp => ({
     name: emp.name,
     email: emp.email,
@@ -61,10 +58,8 @@ export default async function PayrollPage() {
   return (
     <div className="space-y-6">
       
-      {/* 1. Replaced the redundant headers with the action buttons right-aligned */}
       <PayrollActionButtons data={payrollDataForClient} />
 
-      {/* 2. High-Level Metrics */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -117,7 +112,6 @@ export default async function PayrollPage() {
         </Card>
       </div>
 
-      {/* 3. Detailed Payroll Ledger */}
       <Card>
         <CardHeader>
           <CardTitle>Current Payroll Ledger</CardTitle>

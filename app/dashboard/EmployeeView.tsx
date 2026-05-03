@@ -16,7 +16,6 @@ import { salaries as salariesSchema } from "@/db/schema";
 type Salary = InferSelectModel<typeof salariesSchema>;
 
 export function EmployeeView({ salaries }: { salaries: Salary[] }) {
-  // State to hold the current sorting order
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const sortedSalaries =
@@ -27,7 +26,6 @@ export function EmployeeView({ salaries }: { salaries: Salary[] }) {
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle>Your Salary History</CardTitle>
 
-        {/* The Filter Menu */}
         <Select
           value={sortOrder}
           onValueChange={(value) => {

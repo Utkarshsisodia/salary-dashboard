@@ -1,4 +1,3 @@
-// auth.ts
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db"; // Your existing Neon Drizzle instance
@@ -18,7 +17,6 @@ export const auth = betterAuth({
       maxAge: 5 * 60, // Cache session validation for 5 minutes
     },
   },
-  // Map our custom 'role' field so it is available on the session object
   user: {
     additionalFields: {
       role: {

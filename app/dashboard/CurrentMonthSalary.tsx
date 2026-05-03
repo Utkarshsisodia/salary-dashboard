@@ -1,4 +1,3 @@
-// app/dashboard/CurrentMonthSalary.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
 import { Banknote, CalendarDays, TrendingUp } from "lucide-react";
@@ -47,7 +46,6 @@ export function CurrentMonthSalary({
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* The Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm font-medium">
             <span className="text-emerald-600">{formatINR(estimatedPayout)} Earned</span>
@@ -61,7 +59,6 @@ export function CurrentMonthSalary({
           </div>
         </div>
 
-        {/* Metric Grid */}
         <div className="grid grid-cols-2 gap-4 pt-2">
           <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-xl border">
             <div className="p-2 bg-white rounded-lg border shadow-sm">

@@ -1,4 +1,3 @@
-// app/dashboard/schemas.ts
 import { z } from "zod";
 
 export const addEmployeeSchema = z.object({

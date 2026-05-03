@@ -1,4 +1,3 @@
-// app/dashboard/profile/actions.ts
 "use server";
 
 import { auth } from "@/auth";
@@ -16,7 +15,6 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
   const { currentPassword, newPassword } = submission.value;
 
   try {
-    // The server API will THROW an error if the password is wrong
     await auth.api.changePassword({
       headers: await headers(),
       body: {
@@ -26,7 +24,6 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
       },
     });
 
-    // If we make it here, it succeeded!
     return {
       ...submission.reply({ resetForm: true }),
       successMessage: "Password updated successfully!",
@@ -34,7 +31,6 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
   } catch (error: unknown) {
     console.error("Failed to update password:", error);
     
-    // Safely cast the error to check for Better Auth's message format
     const err = error as { body?: { message?: string }; message?: string };
     const errorMessage = err?.body?.message || err?.message || "Incorrect current password.";
     

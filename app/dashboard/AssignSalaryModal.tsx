@@ -1,9 +1,7 @@
-// app/dashboard/AssignSalaryModal.tsx
 "use client";
 
 import { useState, useActionState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-// Import Conform hooks and utilities
 import { useForm, getFormProps, getInputProps } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import type { SubmissionResult } from "@conform-to/react";
@@ -20,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Conform form state definition
 type FormState =
   | (SubmissionResult<string[]> & { successMessage?: string })
   | undefined
@@ -44,15 +41,12 @@ export function AssignSalaryModal({
     }
   };
 
-  // 1. Setup our server action with standard Next.js useActionState
   const [lastResult, formAction, isPending] = useActionState<
     FormState,
     FormData
   >(async (prevState, payload) => {
-    // FIX 1: Explicitly cast the awaited result as FormState
     const result = (await assignSalary(prevState, payload)) as FormState;
 
-    // FIX 2: Safely check that result is actually an object before using 'in'
     if (
       result &&
       typeof result === "object" &&
@@ -65,7 +59,6 @@ export function AssignSalaryModal({
     return result;
   }, undefined);
 
-  // 2. Initialize Conform
   const [form, fields] = useForm({
     lastResult,
     onValidate({ formData }) {
@@ -82,7 +75,6 @@ export function AssignSalaryModal({
           <DialogTitle>Assign Salary to {employeeName}</DialogTitle>
         </DialogHeader>
 
-        {/* 3. Wire up the form to Conform */}
         <form
           {...getFormProps(form)}
           action={formAction}
@@ -98,7 +90,6 @@ export function AssignSalaryModal({
               step="0.01"
               placeholder="750000"
             />
-            {/* Conform handles field-level errors automatically */}
             <div className="text-xs text-red-500 min-h-4">
               {fields.baseAmount.errors}
             </div>
@@ -129,14 +120,12 @@ export function AssignSalaryModal({
             {isPending ? "Saving..." : "Save Salary"}
           </Button>
 
-          {/* Form-level errors (e.g., Database failed) */}
           {form.errors && (
             <p className="text-sm text-red-500 font-medium text-center">
               {form.errors}
             </p>
           )}
 
-          {/* Success message */}
           {lastResult?.successMessage && (
             <p className="text-sm text-green-600 font-medium text-center">
               {lastResult.successMessage}

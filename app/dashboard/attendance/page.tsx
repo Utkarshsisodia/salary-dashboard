@@ -1,4 +1,3 @@
-// app/dashboard/attendance/page.tsx
 import { auth } from "@/auth";
 import { headers } from "next/headers";
 import { db, withRLS } from "@/db";
@@ -34,12 +33,9 @@ export default async function AttendancePage() {
     timeZone: "Asia/Kolkata",
   });
 
-  // 🛡️ THE RLS MAGIC HAPPENS HERE 🛡️
-  // We pass the user ID, and the raw Drizzle query builder!
   const records = await withRLS<typeof attendance.$inferSelect[]>(
     session.user.id,
     db.query.attendance.findMany({
-      // 1. The Application Filter (The Waiter taking your order)
       where: eq(attendance.employeeId, session.user.id), 
       orderBy: [desc(attendance.date)],
     })
@@ -140,7 +136,6 @@ export default async function AttendancePage() {
                   if (record.clockIn && record.clockOut) {
                     let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
                     
-                    // Subtract break time for the ledger status calculation
                     if (record.breakStart && record.breakEnd) {
                       diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
                     }

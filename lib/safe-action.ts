@@ -1,8 +1,6 @@
-// lib/safe-action.ts
 import { auth } from '@/auth';
 import { headers } from 'next/headers';
 
-// Define the shape of the session we expect from Better Auth
 type SessionContext = {
   user: {
     id: string;
@@ -28,7 +26,6 @@ export function withAdminAuth<T>(action: ActionCallback<T>) {
       return { error: 'Unauthorized: Admin privileges required.' } as T;
     }
 
-    // Cast the session to our expected context
     return action(prevState, formData, session as SessionContext);
   };
 }

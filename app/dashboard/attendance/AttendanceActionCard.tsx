@@ -24,7 +24,6 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
   const isClockedIn = todayRecord !== undefined && todayRecord.clockOut === null;
   const isShiftComplete = todayRecord !== undefined && todayRecord.clockOut !== null;
 
-  // Forcing strict booleans with !! to prevent TS/JSX evaluation errors
   const isOnBreak = !!(todayRecord?.breakStart && !todayRecord?.breakEnd);
   const hasTakenBreak = !!(todayRecord?.breakStart && todayRecord?.breakEnd);
 
@@ -96,14 +95,12 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
           </div>
 
           <div className="space-y-3">
-            {/* STATE 1: Shift is Complete */}
             {isShiftComplete && (
               <Button disabled className="w-full h-12 text-lg rounded-xl" variant="secondary">
                 Completed for Today
               </Button>
             )}
 
-            {/* STATE 2: Clocked In (Either working or on break) */}
             {!isShiftComplete && isClockedIn && (
               <div className="grid grid-cols-2 gap-3">
                 {!hasTakenBreak ? (
@@ -132,7 +129,6 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
               </div>
             )}
 
-            {/* STATE 3: Not Clocked In Yet */}
             {!isShiftComplete && !isClockedIn && (
               <Button 
                 onClick={executeToggle} 

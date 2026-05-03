@@ -25,7 +25,6 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      {/* Conditionally render using a single component */}
       <AppSidebar role={role as "admin" | "employee"} />
 
       <SidebarInset>
@@ -33,7 +32,6 @@ export default async function DashboardLayout({
           <div className="mx-auto max-w-5xl space-y-6">
             <header className="flex items-center justify-between pb-4 border-b">
               <div className="flex items-center gap-4">
-                {/* Ensure the trigger shows for both roles on mobile/desktop */}
                 <SidebarTrigger />
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight">
@@ -49,7 +47,6 @@ export default async function DashboardLayout({
               </div>
             </header>
 
-            {/* This is where the specific pages will render! */}
             <main>{children}</main>
           </div>
         </div>

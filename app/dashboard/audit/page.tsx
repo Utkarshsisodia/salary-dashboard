@@ -1,4 +1,3 @@
-// app/dashboard/audit/page.tsx
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -14,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 export default async function AuditLogsPage() {
-  // Fetch logs with the name of the person who performed the action
   const logs = await db.query.auditLogs.findMany({
     orderBy: [desc(auditLogs.createdAt)],
     limit: 100, // Keep it from fetching millions of rows later
@@ -23,7 +21,6 @@ export default async function AuditLogsPage() {
     },
   });
 
-  // Helper to color-code the action badges
   const getBadgeVariant = (actionType: string) => {
     if (actionType.includes('CREATE') || actionType.includes('ADD')) {
       return 'default'; // Uses primary color

@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 import { auth } from "@/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
@@ -26,7 +25,6 @@ export default async function DashboardPage(props: {
 }) {
   const searchParams = await props.searchParams;
 
-  // Better Auth pattern
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -97,10 +95,8 @@ export default async function DashboardPage(props: {
 
     if (!isThisMonth || !record.clockOut) return total;
 
-    // Calculate total ms between clock in and clock out
     let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
 
-    // SUBTRACT BREAK TIME (if they took a complete break)
     if (record.breakStart && record.breakEnd) {
       diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
     }

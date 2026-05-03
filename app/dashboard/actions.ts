@@ -3,7 +3,6 @@
 import { db } from "@/db";
 import { user, salaries, auditLogs } from "@/db/schema"; // Removed account
 import { eq } from "drizzle-orm";
-// Removed bcrypt & randomUUID
 import { revalidatePath } from "next/cache";
 import { formatINR } from "@/lib/utils";
 import { withAdminAuth } from "@/lib/safe-action";
@@ -23,8 +22,6 @@ export const addEmployee = withAdminAuth(
     const { name, email, password: rawPassword, role } = submission.value;
 
     try {
-      // 1. Let Better Auth handle the secure creation and hashing!
-      // (We intentionally DO NOT pass `headers()` so the Admin isn't logged out)
       const authResponse = await auth.api.signUpEmail({
         body: {
           name,
@@ -39,7 +36,6 @@ export const addEmployee = withAdminAuth(
 
       const newUserId = authResponse.user.id;
 
-      // 2. Run our custom business logic (Role & Auditing)
       await db.batch([
         db.update(user)
           .set({ role })
@@ -69,7 +65,6 @@ export const assignSalary = withAdminAuth(
   async (prevState: unknown, formData: FormData, session) => {
     const actorId = session.user.id;
     
-    // 1. Let Conform handle the parsing and validation
     const submission = parseWithZod(formData, { schema: assignSalarySchema });
 
     if (submission.status !== "success") {
@@ -88,7 +83,6 @@ export const assignSalary = withAdminAuth(
       });
 
       if (!targetEmployee) {
-          // Conform format for a general form error
           return submission.reply({ formErrors: ["Employee not found."] }); 
       }
 
@@ -108,7 +102,6 @@ export const assignSalary = withAdminAuth(
 
       revalidatePath("/dashboard");
       
-      // Return a standard Conform success reply
       return { 
           ...submission.reply({ resetForm: true }),
           successMessage: "Salary assigned successfully!" 

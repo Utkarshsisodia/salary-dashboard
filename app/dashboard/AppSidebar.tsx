@@ -1,4 +1,3 @@
-// app/dashboard/AppSidebar.tsx
 "use client";
 
 import { usePathname } from "next/navigation";

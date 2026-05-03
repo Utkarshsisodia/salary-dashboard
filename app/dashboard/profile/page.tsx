@@ -1,4 +1,3 @@
-// app/dashboard/profile/page.tsx
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { user } from "@/db/schema";

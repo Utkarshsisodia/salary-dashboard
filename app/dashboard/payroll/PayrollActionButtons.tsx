@@ -1,4 +1,3 @@
-// app/dashboard/payroll/PayrollActionButtons.tsx
 "use client";
 
 import { useState } from "react";
@@ -37,7 +36,6 @@ export function PayrollActionButtons({ data }: { data: PayrollData }) {
 
     const rows = data.map((emp) => {
       const monthlyBase = emp.baseAmount / 12;
-      // We must wrap values in quotes so the commas in formatINR don't break the CSV columns
       const sanitize = (val: string) => `"${val.replace(/"/g, '""')}"`;
 
       return [
@@ -66,14 +64,12 @@ export function PayrollActionButtons({ data }: { data: PayrollData }) {
 
   const handleRunPayroll = async () => {
     setIsProcessing(true);
-    // Simulate a network request for processing payments
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsProcessing(false);
     setSuccessMessage(
       `Successfully processed payroll for ${data.length} employees.`,
     );
 
-    // Reset state after 3 seconds so the dialog can be closed cleanly
     setTimeout(() => {
       setSuccessMessage("");
     }, 3000);

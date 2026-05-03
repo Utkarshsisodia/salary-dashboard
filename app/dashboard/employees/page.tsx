@@ -20,7 +20,6 @@ export default async function EmployeesPage(props: {
 }) {
   const searchParams = await props.searchParams;
   const assignId = searchParams.assignId;
-  // Fetch employees with their salaries, sorted by newest salary first
   const data = await db.query.user.findMany({
     orderBy: [desc(user.createdAt)],
     with: {
@@ -91,7 +90,6 @@ export default async function EmployeesPage(props: {
           </Table>
         </CardContent>
       </Card>
-      {/* 4. Render exactly ONE modal at the root of the page, outside the table */}
       {selectedEmployee && (
         <AssignSalaryModal
           employeeId={selectedEmployee.id}
