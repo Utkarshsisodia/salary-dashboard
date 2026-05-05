@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { auth } from "@/auth";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { eq, desc, type InferSelectModel } from "drizzle-orm";
 import {
@@ -17,6 +15,7 @@ import { CurrentMonthSalary } from "./CurrentMonthSalary";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getCachedSession } from "@/lib/session";
 
 type Salary = InferSelectModel<typeof salariesSchema>;
 
@@ -150,18 +149,25 @@ async function EmployeeDashboardData({ employeeId }: { employeeId: string }) {
   );
 }
 
-export default async function DashboardPage(props: { searchParams: Promise<{ assignId?: string }> }) {
-  const searchParams = await props.searchParams;
-  const session = await auth.api.getSession({ headers: await headers() });
+async function DashboardContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ assignId?: string }> }) {
+  const searchParams = await searchParamsPromise;
+  
+  // Use our centralized cached session utility to avoid duplicate DB calls!
+  const session = await getCachedSession();
   const { id, role } = session!.user;
 
+  if (role === "admin") {
+    return <AdminDashboardData assignId={searchParams.assignId} />;
+  }
+  
+  return <EmployeeDashboardData employeeId={id} />;
+}
+
+// 2. The top-level page is now completely clean and instantly returns the Suspense boundary
+export default function DashboardPage(props: { searchParams: Promise<{ assignId?: string }> }) {
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      {role === "admin" ? (
-        <AdminDashboardData assignId={searchParams.assignId} />
-      ) : (
-        <EmployeeDashboardData employeeId={id} />
-      )}
+      <DashboardContent searchParamsPromise={props.searchParams} />
     </Suspense>
   );
 }
