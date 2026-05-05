@@ -1,60 +1,71 @@
-'use client';
+"use client";
 
-import { useActionState } from 'react';
-import { useForm, getFormProps, getInputProps } from '@conform-to/react';
-import { parseWithZod } from '@conform-to/zod';
-import type { SubmissionResult } from '@conform-to/react';
-import { updatePassword } from './actions';
-import { updatePasswordSchema } from './schemas';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { useAction } from "next-safe-action/hooks";
+import { updatePassword } from "./actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useRef } from "react";
 
-type FormState = SubmissionResult<string[]> & { successMessage?: string } | undefined | null;
 export function PasswordForm() {
-  const [lastResult, formAction, isPending] = useActionState<FormState, FormData>(
-    updatePassword as unknown as (state: FormState, payload: FormData) => Promise<FormState>, 
-    undefined
-  );
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const [form, fields] = useForm({
-    lastResult,
-    onValidate({ formData }) {
-      return parseWithZod(formData, { schema: updatePasswordSchema });
+  const { execute, status, result } = useAction(updatePassword, {
+    onSuccess: () => {
+      formRef.current?.reset();
     },
-    shouldValidate: 'onBlur',
-    shouldRevalidate: 'onInput',
   });
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    execute({
+      currentPassword: formData.get("currentPassword") as string,
+      newPassword: formData.get("newPassword") as string,
+      confirmPassword: formData.get("confirmPassword") as string,
+    });
+  };
+
+  const isPending = status === "executing";
+
   return (
-    <form {...getFormProps(form)} action={formAction} className="space-y-4 max-w-md">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 max-w-md">
       <div className="space-y-2">
-        <Label htmlFor={fields.currentPassword.id}>Current Password</Label>
-        <Input {...getInputProps(fields.currentPassword, { type: 'password' })} />
-        <div className="text-xs text-red-500 min-h-4">{fields.currentPassword.errors}</div>
+        <Label htmlFor="currentPassword">Current Password</Label>
+        <Input name="currentPassword" type="password" />
+        <div className="text-xs text-red-500 min-h-4">
+          {result.validationErrors?.currentPassword?._errors?.[0]}
+        </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fields.newPassword.id}>New Password</Label>
-        <Input {...getInputProps(fields.newPassword, { type: 'password' })} />
-        <div className="text-xs text-red-500 min-h-4">{fields.newPassword.errors}</div>
+        <Label htmlFor="newPassword">New Password</Label>
+        <Input name="newPassword" type="password" />
+        <div className="text-xs text-red-500 min-h-4">
+          {result.validationErrors?.newPassword?._errors?.[0]}
+        </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fields.confirmPassword.id}>Confirm New Password</Label>
-        <Input {...getInputProps(fields.confirmPassword, { type: 'password' })} />
-        <div className="text-xs text-red-500 min-h-4">{fields.confirmPassword.errors}</div>
+        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+        <Input name="confirmPassword" type="password" />
+        <div className="text-xs text-red-500 min-h-4">
+          {result.validationErrors?.confirmPassword?._errors?.[0]}
+        </div>
       </div>
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? 'Updating...' : 'Update Password'}
+        {isPending ? "Updating..." : "Update Password"}
       </Button>
 
-      {form.errors && <p className="text-sm text-red-500 font-medium">{form.errors}</p>}
-      
-      {lastResult?.successMessage && (
+      {result.serverError && (
+        <p className="text-sm text-red-500 font-medium">{result.serverError}</p>
+      )}
+
+      {result.data?.successMessage && (
         <p className="text-sm text-green-600 font-medium p-3 bg-green-50 rounded-lg border border-green-200">
-          {lastResult.successMessage}
+          {result.data.successMessage}
         </p>
       )}
     </form>

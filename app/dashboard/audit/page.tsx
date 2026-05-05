@@ -1,36 +1,35 @@
+import { Suspense } from "react";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default async function AuditLogsPage() {
+function AuditSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-10 w-48 mb-2" />
+        <Skeleton className="h-5 w-96" />
+      </div>
+      <Skeleton className="h-[600px] w-full rounded-xl" />
+    </div>
+  );
+}
+
+async function AuditData() {
   const logs = await db.query.auditLogs.findMany({
     orderBy: [desc(auditLogs.createdAt)],
-    limit: 100, // Keep it from fetching millions of rows later
-    with: {
-      actor: true,
-    },
+    limit: 100,
+    with: { actor: true },
   });
 
   const getBadgeVariant = (actionType: string) => {
-    if (actionType.includes('CREATE') || actionType.includes('ADD')) {
-      return 'default'; // Uses primary color
-    }
-    if (actionType.includes('DELETE') || actionType.includes('REMOVE')) {
-      return 'destructive'; // Uses red
-    }
-    if (actionType.includes('UPDATE') || actionType.includes('ASSIGN')) {
-      return 'secondary'; // Uses the secondary muted color
-    }
+    if (actionType.includes('CREATE') || actionType.includes('ADD')) return 'default';
+    if (actionType.includes('DELETE') || actionType.includes('REMOVE')) return 'destructive';
+    if (actionType.includes('UPDATE') || actionType.includes('ASSIGN')) return 'secondary';
     return 'outline';
   };
 
@@ -38,9 +37,7 @@ export default async function AuditLogsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Audit Logs</h2>
-        <p className="text-muted-foreground">
-          A chronological record of administrative actions across the platform.
-        </p>
+        <p className="text-muted-foreground">A chronological record of administrative actions across the platform.</p>
       </div>
 
       <Card>
@@ -70,25 +67,12 @@ export default async function AuditLogsPage() {
                   <TableRow key={log.id}>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(log.createdAt).toLocaleString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
+                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
                       })}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {log.actor?.name || 'System User'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getBadgeVariant(log.actionType)}>
-                        {log.actionType.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {log.description}
-                    </TableCell>
+                    <TableCell className="font-medium">{log.actor?.name || 'System User'}</TableCell>
+                    <TableCell><Badge variant={getBadgeVariant(log.actionType)}>{log.actionType.replace('_', ' ')}</Badge></TableCell>
+                    <TableCell className="text-muted-foreground">{log.description}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -97,5 +81,13 @@ export default async function AuditLogsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AuditLogsPage() {
+  return (
+    <Suspense fallback={<AuditSkeleton />}>
+      <AuditData />
+    </Suspense>
   );
 }

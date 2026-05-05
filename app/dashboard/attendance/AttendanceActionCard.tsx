@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useAction } from "next-safe-action/hooks";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,27 +18,23 @@ type TodayRecord = {
 } | undefined;
 
 export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord }) {
-  const [isPending, startTransition] = useTransition();
   const [showWarning, setShowWarning] = useState(false);
   const [warningType, setWarningType] = useState<"half" | "none">("none");
 
+  // Renamed destructured executes to avoid naming collisions
+  const { execute: runAttendance, status: attendanceStatus } = useAction(toggleAttendance);
+  const { execute: runBreak, status: breakStatus } = useAction(toggleBreak);
+  
+  const isPending = attendanceStatus === "executing" || breakStatus === "executing";
+
   const isClockedIn = todayRecord !== undefined && todayRecord.clockOut === null;
   const isShiftComplete = todayRecord !== undefined && todayRecord.clockOut !== null;
-
   const isOnBreak = !!(todayRecord?.breakStart && !todayRecord?.breakEnd);
   const hasTakenBreak = !!(todayRecord?.breakStart && todayRecord?.breakEnd);
 
-  const executeToggle = () => {
+  const handleToggleAttendance = () => {
     setShowWarning(false);
-    startTransition(async () => {
-      await toggleAttendance();
-    });
-  };
-
-  const executeBreakToggle = () => {
-    startTransition(async () => {
-      await toggleBreak();
-    });
+    runAttendance();
   };
 
   const handleClockOutClick = () => {
@@ -56,7 +53,7 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
         return;
       }
     }
-    executeToggle();
+    handleToggleAttendance();
   };
 
   return (
@@ -105,7 +102,7 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
               <div className="grid grid-cols-2 gap-3">
                 {!hasTakenBreak ? (
                   <Button 
-                    onClick={executeBreakToggle} 
+                    onClick={() => runBreak()} 
                     disabled={isPending}
                     variant={isOnBreak ? "default" : "outline"}
                     className={`h-12 rounded-xl border-2 ${isOnBreak ? 'bg-amber-500 hover:bg-amber-600 border-amber-600' : 'border-amber-500 text-amber-600 hover:bg-amber-50'}`}
@@ -131,7 +128,7 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
 
             {!isShiftComplete && !isClockedIn && (
               <Button 
-                onClick={executeToggle} 
+                onClick={() => handleToggleAttendance()} 
                 disabled={isPending}
                 className="w-full h-12 text-lg rounded-xl"
               >
@@ -162,7 +159,7 @@ export function AttendanceActionCard({ todayRecord }: { todayRecord: TodayRecord
             <Button variant="outline" onClick={() => setShowWarning(false)}>
               Cancel
             </Button>
-            <Button variant={warningType === "half" ? "default" : "destructive"} onClick={executeToggle}>
+            <Button variant={warningType === "half" ? "default" : "destructive"} onClick={() => handleToggleAttendance()}>
               Clock Out Anyway
             </Button>
           </DialogFooter>

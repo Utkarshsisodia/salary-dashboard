@@ -1,45 +1,34 @@
 "use server";
 
 import { db } from "@/db";
-import { user, salaries, auditLogs } from "@/db/schema"; // Removed account
+import { user, salaries, auditLogs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { formatINR } from "@/lib/utils";
-import { withAdminAuth } from "@/lib/safe-action";
-import { parseWithZod } from "@conform-to/zod";
+import { adminActionClient } from "@/lib/safe-action";
 import { addEmployeeSchema, assignSalarySchema } from "./schemas";
-import { auth } from "@/auth"; // Added auth
+import { auth } from "@/auth";
 
-export const addEmployee = withAdminAuth(
-  async (prevState: unknown, formData: FormData, session) => {
-    const actorId = session.user.id;
-    const submission = parseWithZod(formData, { schema: addEmployeeSchema });
-
-    if (submission.status !== "success") {
-      return submission.reply();
-    }
-
-    const { name, email, password: rawPassword, role } = submission.value;
+export const addEmployee = adminActionClient
+  .schema(addEmployeeSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    // 1. Zod already validated this, and ctx.user is guaranteed by our middleware!
+    const { name, email, password: rawPassword, role } = parsedInput;
+    const actorId = ctx.user.id;
 
     try {
       const authResponse = await auth.api.signUpEmail({
-        body: {
-          name,
-          email,
-          password: rawPassword,
-        },
+        body: { name, email, password: rawPassword },
       });
 
       if (!authResponse?.user) {
-        return submission.reply({ formErrors: ["Failed to create identity."] });
+        throw new Error("Failed to create identity.");
       }
 
       const newUserId = authResponse.user.id;
 
       await db.batch([
-        db.update(user)
-          .set({ role })
-          .where(eq(user.id, newUserId)),
+        db.update(user).set({ role }).where(eq(user.id, newUserId)),
         db.insert(auditLogs).values({
           actorId,
           actionType: "CREATE_EMPLOYEE",
@@ -48,30 +37,19 @@ export const addEmployee = withAdminAuth(
       ]);
 
       revalidatePath("/dashboard");
-      return {
-        ...submission.reply({ resetForm: true }),
-        successMessage: "Employee created successfully!",
-      };
-    } catch (error: unknown) {
+      return { successMessage: "Employee created successfully!" };
+      
+    } catch (error) {
       console.error("Add Employee Error:", error);
-      return submission.reply({ 
-        formErrors: ["Failed to create employee. This email might already exist."] 
-      });
+      throw new Error("Failed to create employee. This email might already exist.");
     }
-  },
-);
+  });
 
-export const assignSalary = withAdminAuth(
-  async (prevState: unknown, formData: FormData, session) => {
-    const actorId = session.user.id;
-    
-    const submission = parseWithZod(formData, { schema: assignSalarySchema });
-
-    if (submission.status !== "success") {
-      return submission.reply(); // Conform handles the field errors automatically!
-    }
-
-    const { employeeId, baseAmount, bonus, effectiveDate } = submission.value;
+export const assignSalary = adminActionClient
+  .schema(assignSalarySchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { employeeId, baseAmount, bonus, effectiveDate } = parsedInput;
+    const actorId = ctx.user.id;
 
     try {
       const baseInCents = Math.round(baseAmount * 100);
@@ -83,7 +61,7 @@ export const assignSalary = withAdminAuth(
       });
 
       if (!targetEmployee) {
-          return submission.reply({ formErrors: ["Employee not found."] }); 
+        throw new Error("Employee not found.");
       }
 
       await db.batch([
@@ -101,14 +79,10 @@ export const assignSalary = withAdminAuth(
       ]);
 
       revalidatePath("/dashboard");
-      
-      return { 
-          ...submission.reply({ resetForm: true }),
-          successMessage: "Salary assigned successfully!" 
-      };
+      return { successMessage: "Salary assigned successfully!" };
       
     } catch (error) {
-      return submission.reply({ formErrors: ["Failed to assign salary to the database."] });
+      console.error("Assign Salary Error:", error); // Now it's used!
+      throw new Error("Failed to assign salary to the database.");
     }
-  },
-);
+  });

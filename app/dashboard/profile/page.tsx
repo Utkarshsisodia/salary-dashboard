@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { auth } from "@/auth";
+import { headers } from "next/headers";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,39 +9,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { UserCircle, Mail, Briefcase, Calendar, ShieldCheck } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Mail, Briefcase, Calendar, ShieldCheck } from "lucide-react";
 import { PasswordForm } from "./PasswordForm";
-import { headers } from "next/headers";
 
-export default async function ProfilePage() {
-  const session = await auth.api.getSession({
-  headers: await headers()
-});
-  if (!session?.user) redirect("/login");
+function ProfileSkeleton() {
+  return (
+    <div className="space-y-6 pt-2">
+      <div className="grid gap-6 md:grid-cols-3">
+        <Skeleton className="h-[300px] w-full rounded-xl md:col-span-1" />
+        <div className="md:col-span-2 space-y-6">
+          <Skeleton className="h-[300px] w-full rounded-xl" />
+          <Skeleton className="h-[300px] w-full rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
+async function ProfileData({ userId }: { userId: string }) {
   const User = await db.query.user.findFirst({
-    where: eq(user.id, session.user.id),
+    where: eq(user.id, userId),
   });
 
   if (!User) redirect("/login");
 
-  const initials = User.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = User.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
     <div className="space-y-6 pt-2">
       <div className="grid gap-6 md:grid-cols-3">
-        
         <Card className="shadow-sm md:col-span-1 h-fit">
           <CardContent className="pt-6 flex flex-col items-center text-center space-y-4">
             <div className="h-24 w-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
               {initials}
             </div>
-            
             <div className="space-y-1">
               <h3 className="text-xl font-bold">{User.name}</h3>
               <p className="text-muted-foreground text-sm flex items-center justify-center gap-1.5">
@@ -47,11 +51,9 @@ export default async function ProfilePage() {
                 <span className="capitalize">{User.role}</span>
               </p>
             </div>
-
             <Badge variant={User.role === 'admin' ? 'destructive' : 'default'} className="mt-2">
               {User.role === 'admin' ? 'Admin Access' : 'Standard Access'}
             </Badge>
-
             <div className="w-full pt-6 space-y-4 text-sm text-left">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-muted-foreground" />
@@ -66,7 +68,6 @@ export default async function ProfilePage() {
         </Card>
 
         <div className="md:col-span-2 space-y-6">
-          
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
@@ -91,7 +92,6 @@ export default async function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-
           <Card className="shadow-sm border-rose-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -104,9 +104,19 @@ export default async function ProfilePage() {
               <PasswordForm />
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>
+  );
+}
+
+export default async function ProfilePage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) redirect("/login");
+
+  return (
+    <Suspense fallback={<ProfileSkeleton />}>
+      <ProfileData userId={session.user.id} />
+    </Suspense>
   );
 }

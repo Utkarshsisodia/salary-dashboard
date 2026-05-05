@@ -1,110 +1,84 @@
 "use server";
 
-import { auth } from "@/auth";
 import { db } from "@/db";
 import { attendance } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { protectedActionClient } from "@/lib/safe-action";
 
-export async function toggleAttendance() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session?.user?.id) throw new Error("Unauthorized");
+export const toggleAttendance = protectedActionClient
+  .action(async ({ ctx }) => {
+    // Look how clean this is. No manual session checking!
+    const employeeId = ctx.user.id;
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const now = new Date();
 
-  const employeeId = session.user.id;
+    try {
+      const existingRecord = await db.query.attendance.findFirst({
+        where: and(
+          eq(attendance.employeeId, employeeId),
+          eq(attendance.date, today),
+        ),
+      });
 
-  const today = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
-  });
-  const now = new Date();
+      if (!existingRecord) {
+        await db.insert(attendance)
+          .values({ employeeId, date: today, clockIn: now })
+          .onConflictDoNothing();
+      } else if (!existingRecord.clockOut) {
+        await db.update(attendance)
+          .set({ clockOut: now })
+          .where(eq(attendance.id, existingRecord.id));
+      } else {
+        throw new Error("You have already completed your shift for today.");
+      }
 
-  try {
-    const existingRecord = await db.query.attendance.findFirst({
-      where: and(
-        eq(attendance.employeeId, employeeId),
-        eq(attendance.date, today),
-      ),
-    });
-
-    if (!existingRecord) {
-      await db
-        .insert(attendance)
-        .values({
-          employeeId,
-          date: today,
-          clockIn: now,
-        })
-        .onConflictDoNothing();
-    } else if (!existingRecord.clockOut) {
-      await db
-        .update(attendance)
-        .set({ clockOut: now })
-        .where(eq(attendance.id, existingRecord.id));
-    } else {
-      return { error: "You have already completed your shift for today." };
-    }
-
-    revalidatePath("/dashboard/attendance");
-    return { success: true };
-  } catch (error) {
-    console.error("Attendance Error:", error);
-    return { error: "Failed to update attendance." };
-  }
-}
-export async function toggleBreak() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const employeeId = session.user.id;
-  const today = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
-  });
-  const now = new Date();
-
-  try {
-    const existingRecord = await db.query.attendance.findFirst({
-      where: and(
-        eq(attendance.employeeId, employeeId),
-        eq(attendance.date, today),
-      ),
-    });
-
-    if (!existingRecord) {
-      return { error: "You must clock in before taking a break." };
-    }
-
-    if (existingRecord.clockOut) {
-      return { error: "Your shift is already complete for today." };
-    }
-
-    if (!existingRecord.breakStart) {
-      await db
-        .update(attendance)
-        .set({ breakStart: now })
-        .where(eq(attendance.id, existingRecord.id));
-        
       revalidatePath("/dashboard/attendance");
-      return { success: true, message: "Break started." };
+      return { successMessage: "Attendance recorded successfully." };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      throw new Error(message);
     }
+  });
 
-    if (existingRecord.breakStart && !existingRecord.breakEnd) {
-      await db
-        .update(attendance)
-        .set({ breakEnd: now })
-        .where(eq(attendance.id, existingRecord.id));
-        
-      revalidatePath("/dashboard/attendance");
-      return { success: true, message: "Break ended." };
+export const toggleBreak = protectedActionClient
+  .action(async ({ ctx }) => {
+    const employeeId = ctx.user.id;
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const now = new Date();
+
+    try {
+      const existingRecord = await db.query.attendance.findFirst({
+        where: and(
+          eq(attendance.employeeId, employeeId),
+          eq(attendance.date, today),
+        ),
+      });
+
+      if (!existingRecord) throw new Error("You must clock in before taking a break.");
+      if (existingRecord.clockOut) throw new Error("Your shift is already complete for today.");
+
+      if (!existingRecord.breakStart) {
+        await db.update(attendance)
+          .set({ breakStart: now })
+          .where(eq(attendance.id, existingRecord.id));
+          
+        revalidatePath("/dashboard/attendance");
+        return { successMessage: "Break started." };
+      }
+
+      if (existingRecord.breakStart && !existingRecord.breakEnd) {
+        await db.update(attendance)
+          .set({ breakEnd: now })
+          .where(eq(attendance.id, existingRecord.id));
+          
+        revalidatePath("/dashboard/attendance");
+        return { successMessage: "Break ended." };
+      }
+
+      throw new Error("You have already taken your break for today.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      throw new Error(message);
     }
-
-    return { error: "You have already taken your break for today." };
-    
-  } catch (error) {
-    console.error("Break Action Error:", error);
-    return { error: "Failed to update break status." };
-  }
-}
+  });

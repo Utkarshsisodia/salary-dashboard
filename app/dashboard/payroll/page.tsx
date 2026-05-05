@@ -1,28 +1,33 @@
+import { Suspense } from "react";
 import { db } from "@/db";
 import { user, salaries } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatINR } from "@/lib/utils";
 import { Calculator, ReceiptText } from "lucide-react";
-
 import { PayrollActionButtons } from "./PayrollActionButtons";
 
-export default async function PayrollPage() {
+function PayrollSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end gap-2 mb-2">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+      <Skeleton className="h-[400px] w-full rounded-xl" />
+    </div>
+  );
+}
+
+async function PayrollData() {
   const data = await db.query.user.findMany({
     with: {
       salaries: {
@@ -33,33 +38,17 @@ export default async function PayrollPage() {
   });
 
   const activePayroll = data.filter((emp) => emp.salaries.length > 0);
-
   const payrollDataForClient = activePayroll.map(emp => ({
-    name: emp.name,
-    email: emp.email,
-    baseAmount: emp.salaries[0].baseAmount,
-    bonus: emp.salaries[0].bonus
+    name: emp.name, email: emp.email, baseAmount: emp.salaries[0].baseAmount, bonus: emp.salaries[0].bonus
   }));
 
-  const totalMonthlyBase = activePayroll.reduce(
-    (sum, emp) => sum + emp.salaries[0].baseAmount / 12, 
-    0
-  );
-  
-  const totalBonuses = activePayroll.reduce(
-    (sum, emp) => sum + emp.salaries[0].bonus, 
-    0
-  );
-
-  const averageMonthlySalary = activePayroll.length > 0 
-    ? totalMonthlyBase / activePayroll.length 
-    : 0;
+  const totalMonthlyBase = activePayroll.reduce((sum, emp) => sum + emp.salaries[0].baseAmount / 12, 0);
+  const totalBonuses = activePayroll.reduce((sum, emp) => sum + emp.salaries[0].bonus, 0);
+  const averageMonthlySalary = activePayroll.length > 0 ? totalMonthlyBase / activePayroll.length : 0;
 
   return (
     <div className="space-y-6">
-      
       <PayrollActionButtons data={payrollDataForClient} />
-
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -68,9 +57,7 @@ export default async function PayrollPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatINR(totalMonthlyBase)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Estimated base payout per month
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Estimated base payout per month</p>
           </CardContent>
         </Card>
         <Card>
@@ -80,24 +67,13 @@ export default async function PayrollPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatINR(totalBonuses)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Sum of all currently assigned bonuses
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Sum of all currently assigned bonuses</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg. Monthly Salary</CardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="h-4 w-4 text-muted-foreground">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
@@ -105,9 +81,7 @@ export default async function PayrollPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatINR(averageMonthlySalary)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Across {activePayroll.length} salaried employees
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Across {activePayroll.length} salaried employees</p>
           </CardContent>
         </Card>
       </div>
@@ -115,9 +89,7 @@ export default async function PayrollPage() {
       <Card>
         <CardHeader>
           <CardTitle>Current Payroll Ledger</CardTitle>
-          <CardDescription>
-            A breakdown of monthly costs per employee based on their latest assigned salary.
-          </CardDescription>
+          <CardDescription>A breakdown of monthly costs per employee based on their latest assigned salary.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -132,15 +104,12 @@ export default async function PayrollPage() {
             <TableBody>
               {activePayroll.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    No active salaries found.
-                  </TableCell>
+                  <TableCell colSpan={4} className="h-24 text-center">No active salaries found.</TableCell>
                 </TableRow>
               ) : (
                 activePayroll.map((emp) => {
                   const currentSalary = emp.salaries[0];
                   const monthlyBase = currentSalary.baseAmount / 12;
-                  
                   return (
                     <TableRow key={emp.id}>
                       <TableCell>
@@ -157,9 +126,7 @@ export default async function PayrollPage() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatINR(monthlyBase)}
-                      </TableCell>
+                      <TableCell className="text-right font-semibold">{formatINR(monthlyBase)}</TableCell>
                     </TableRow>
                   );
                 })
@@ -169,5 +136,13 @@ export default async function PayrollPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PayrollPage() {
+  return (
+    <Suspense fallback={<PayrollSkeleton />}>
+      <PayrollData />
+    </Suspense>
   );
 }

@@ -1,13 +1,9 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useForm, getFormProps, getInputProps } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
-import type { SubmissionResult } from "@conform-to/react";
-
+import { useAction } from "next-safe-action/hooks";
 import { assignSalary } from "./actions";
-import { assignSalarySchema } from "./schemas"; // Make sure this is exported from schemas.ts!
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-type FormState =
-  | (SubmissionResult<string[]> & { successMessage?: string })
-  | undefined
-  | null;
 
 export function AssignSalaryModal({
   employeeId,
@@ -41,32 +32,25 @@ export function AssignSalaryModal({
     }
   };
 
-  const [lastResult, formAction, isPending] = useActionState<
-    FormState,
-    FormData
-  >(async (prevState, payload) => {
-    const result = (await assignSalary(prevState, payload)) as FormState;
-
-    if (
-      result &&
-      typeof result === "object" &&
-      "successMessage" in result &&
-      result.successMessage
-    ) {
+  const { execute, status, result } = useAction(assignSalary, {
+    onSuccess: () => {
       setTimeout(() => handleClose(false), 800);
-    }
-
-    return result;
-  }, undefined);
-
-  const [form, fields] = useForm({
-    lastResult,
-    onValidate({ formData }) {
-      return parseWithZod(formData, { schema: assignSalarySchema });
     },
-    shouldValidate: "onBlur",
-    shouldRevalidate: "onInput",
   });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    execute({
+      employeeId,
+      baseAmount: Number(formData.get("baseAmount")),
+      bonus: Number(formData.get("bonus") || 0),
+      effectiveDate: formData.get("effectiveDate") as string,
+    });
+  };
+
+  const isPending = status === "executing";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -75,44 +59,40 @@ export function AssignSalaryModal({
           <DialogTitle>Assign Salary to {employeeName}</DialogTitle>
         </DialogHeader>
 
-        <form
-          {...getFormProps(form)}
-          action={formAction}
-          className="space-y-4 mt-4"
-        >
-          <input type="hidden" name="employeeId" value={employeeId} />
-
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor={fields.baseAmount.id}>Base Amount (Annual ₹)</Label>
+            <Label htmlFor="baseAmount">Base Amount (Annual ₹)</Label>
             <Input
-              {...getInputProps(fields.baseAmount, { type: "number" })}
+              name="baseAmount"
+              type="number"
               min="0"
               step="0.01"
               placeholder="750000"
             />
             <div className="text-xs text-red-500 min-h-4">
-              {fields.baseAmount.errors}
+              {result.validationErrors?.baseAmount?._errors?.[0]}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={fields.bonus.id}>Bonus (₹)</Label>
+            <Label htmlFor="bonus">Bonus (₹)</Label>
             <Input
-              {...getInputProps(fields.bonus, { type: "number" })}
+              name="bonus"
+              type="number"
               min="0"
               step="0.01"
-              defaultValue={fields.bonus.initialValue || "0"}
+              defaultValue="0"
             />
             <div className="text-xs text-red-500 min-h-4">
-              {fields.bonus.errors}
+              {result.validationErrors?.bonus?._errors?.[0]}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={fields.effectiveDate.id}>Effective Date</Label>
-            <Input {...getInputProps(fields.effectiveDate, { type: "date" })} />
+            <Label htmlFor="effectiveDate">Effective Date</Label>
+            <Input name="effectiveDate" type="date" />
             <div className="text-xs text-red-500 min-h-4">
-              {fields.effectiveDate.errors}
+              {result.validationErrors?.effectiveDate?._errors?.[0]}
             </div>
           </div>
 
@@ -120,15 +100,15 @@ export function AssignSalaryModal({
             {isPending ? "Saving..." : "Save Salary"}
           </Button>
 
-          {form.errors && (
+          {result.serverError && (
             <p className="text-sm text-red-500 font-medium text-center">
-              {form.errors}
+              {result.serverError}
             </p>
           )}
 
-          {lastResult?.successMessage && (
+          {result.data?.successMessage && (
             <p className="text-sm text-green-600 font-medium text-center">
-              {lastResult.successMessage}
+              {result.data.successMessage}
             </p>
           )}
         </form>
