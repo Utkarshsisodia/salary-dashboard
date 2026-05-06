@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { assignSalary } from "./actions";
@@ -24,6 +24,7 @@ export function AssignSalaryModal({
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
+  const timerRef = useRef<NodeJS.Timeout>(null);
 
   const handleClose = (isOpen: boolean) => {
     setOpen(isOpen);
@@ -32,9 +33,15 @@ export function AssignSalaryModal({
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const { execute, status, result } = useAction(assignSalary, {
     onSuccess: () => {
-      setTimeout(() => handleClose(false), 800);
+      timerRef.current = setTimeout(() => handleClose(false), 800);
     },
   });
 
@@ -49,7 +56,6 @@ export function AssignSalaryModal({
       effectiveDate: formData.get("effectiveDate") as string,
     });
   };
-
   const isPending = status === "executing";
 
   return (

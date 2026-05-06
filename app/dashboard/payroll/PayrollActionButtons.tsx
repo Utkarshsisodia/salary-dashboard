@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Calculator } from "lucide-react";
 import { formatINR } from "@/lib/utils";
@@ -24,6 +24,7 @@ type PayrollData = {
 export function PayrollActionButtons({ data }: { data: PayrollData }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const timerRef = useRef<NodeJS.Timeout>(null);
 
   const handleExportCSV = () => {
     const headers = [
@@ -62,15 +63,19 @@ export function PayrollActionButtons({ data }: { data: PayrollData }) {
     document.body.removeChild(link);
   };
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const handleRunPayroll = async () => {
     setIsProcessing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500)); // Artificial delay is fine
     setIsProcessing(false);
-    setSuccessMessage(
-      `Successfully processed payroll for ${data.length} employees.`,
-    );
+    setSuccessMessage(`Successfully processed payroll for ${data.length} employees.`);
 
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setSuccessMessage("");
     }, 3000);
   };
