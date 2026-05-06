@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { eq, desc, type InferSelectModel } from "drizzle-orm";
 import {
@@ -28,7 +29,7 @@ function DashboardSkeleton() {
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />
       </div>
-      <Skeleton className="h-[400px] w-full rounded-xl" />
+      <Skeleton className="h-100 w-full rounded-xl" />
     </div>
   );
 }
@@ -151,10 +152,12 @@ async function EmployeeDashboardData({ employeeId }: { employeeId: string }) {
 
 async function DashboardContent({ searchParamsPromise }: { searchParamsPromise: Promise<{ assignId?: string }> }) {
   const searchParams = await searchParamsPromise;
-  
-  // Use our centralized cached session utility to avoid duplicate DB calls!
   const session = await getCachedSession();
-  const { id, role } = session!.user;
+  
+  // 1. Explicitly catch null sessions to prevent rendering crashes
+  if (!session?.user) redirect("/login"); 
+
+  const { id, role } = session.user; // 2. No more exclamation mark (!) needed!
 
   if (role === "admin") {
     return <AdminDashboardData assignId={searchParams.assignId} />;
