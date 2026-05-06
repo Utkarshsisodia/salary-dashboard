@@ -7,18 +7,17 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set in the environment variables');
 }
 
-// 1. Create the client
-const sqlClient = neon(process.env.DATABASE_URL);
+function createDb() {
+  const sqlClient = neon(process.env.DATABASE_URL!);
+  return drizzle(sqlClient, { schema });
+}
 
-// 2. Setup the global cache for development
 const globalForDb = globalThis as unknown as {
-  db: ReturnType<typeof drizzle>;
+  db: ReturnType<typeof createDb> | undefined;
 };
 
-// 3. Use the cached instance if it exists, otherwise create a new one
-export const db = globalForDb.db || drizzle(sqlClient, { schema });
+export const db = globalForDb.db ?? createDb();
 
-// 4. Save the instance to the global cache if not in production
 if (process.env.NODE_ENV !== 'production') {
   globalForDb.db = db;
 }
