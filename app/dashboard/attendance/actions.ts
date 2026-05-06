@@ -5,12 +5,12 @@ import { attendance } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { protectedActionClient } from "@/lib/safe-action";
+import { getTodayDateString } from "@/lib/date-utils"; // <-- Import here
 
 export const toggleAttendance = protectedActionClient
   .action(async ({ ctx }) => {
-    // Look how clean this is. No manual session checking!
     const employeeId = ctx.user.id;
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const today = getTodayDateString(); // <-- Clean and timezone safe!
     const now = new Date();
 
     try {
@@ -44,7 +44,7 @@ export const toggleAttendance = protectedActionClient
 export const toggleBreak = protectedActionClient
   .action(async ({ ctx }) => {
     const employeeId = ctx.user.id;
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const today = getTodayDateString(); // <-- Clean and timezone safe!
     const now = new Date();
 
     try {

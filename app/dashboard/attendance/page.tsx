@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { auth } from "@/auth";
-import { headers } from "next/headers";
 import { db, withRLS } from "@/db";
 import { attendance } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -10,8 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceActionCard } from "./AttendanceActionCard";
+import { getCachedSession } from "@/lib/session"; // 1. Import your cached session utility!
+import { calculateHoursWorked, formatDate, formatTime, isCurrentMonth } from "@/lib/date-utils";
 
 function AttendanceSkeleton() {
+  // ... (keep your existing skeleton code)
   return (
     <div className="space-y-6 pt-2">
       <div className="grid gap-6 md:grid-cols-2">
@@ -23,7 +24,12 @@ function AttendanceSkeleton() {
   );
 }
 
-async function AttendanceData({ userId }: { userId: string }) {
+// 2. Fetch the session INSIDE the Suspense-wrapped component
+async function AttendanceData() {
+  const session = await getCachedSession();
+  if (!session?.user) redirect("/login");
+  
+  const userId = session.user.id;
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
   const records = await withRLS<typeof attendance.$inferSelect[]>(
@@ -39,16 +45,19 @@ async function AttendanceData({ userId }: { userId: string }) {
   const currentYear = new Date().getFullYear();
 
   const totalDaysPresent = records.reduce((total, record) => {
-    const d = new Date(record.date);
-    const isThisMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    if (!isThisMonth || !record.clockOut) return total;
+    if (!record.clockOut || !isCurrentMonth(record.date)) return total;
 
     let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
     if (record.breakStart && record.breakEnd) {
-      diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
+      diffMs -= record.breakEnd.getTime() - record.breakStart.getTime();
     }
 
-    const diffHrs = diffMs / (1000 * 60 * 60);
+    const diffHrs = calculateHoursWorked(
+      record.clockIn,
+      record.clockOut,
+      record.breakStart,
+      record.breakEnd,
+    );
     if (diffHrs >= 8) return total + 1;
     if (diffHrs >= 4) return total + 0.5;
     return total;
@@ -61,13 +70,22 @@ async function AttendanceData({ userId }: { userId: string }) {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Monthly Overview</CardTitle>
-            <CardDescription>{new Date().toLocaleString("default", { month: "long" })} {currentYear}</CardDescription>
+            <CardDescription>
+              {new Date().toLocaleString("default", { month: "long" })}{" "}
+              {currentYear}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center h-40">
             <div className="text-center">
-              <p className="text-5xl font-bold text-primary">{totalDaysPresent}</p>
-              <p className="text-sm font-medium text-muted-foreground mt-2">Days Credited</p>
-              <p className="text-xs text-muted-foreground mt-1">(Includes half-days)</p>
+              <p className="text-5xl font-bold text-primary">
+                {totalDaysPresent}
+              </p>
+              <p className="text-sm font-medium text-muted-foreground mt-2">
+                Days Credited
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Includes half-days)
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -76,7 +94,9 @@ async function AttendanceData({ userId }: { userId: string }) {
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Attendance Ledger</CardTitle>
-          <CardDescription>A chronological record of your recent punches.</CardDescription>
+          <CardDescription>
+            A chronological record of your recent punches.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -91,34 +111,65 @@ async function AttendanceData({ userId }: { userId: string }) {
             <TableBody>
               {records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                  <TableCell
+                    colSpan={4}
+                    className="text-center text-muted-foreground h-24"
+                  >
                     No attendance records found.
                   </TableCell>
                 </TableRow>
               ) : (
                 records.map((record) => {
-                  let statusElement = <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">Active</Badge>;
+                  let statusElement = (
+                    <Badge
+                      variant="secondary"
+                      className="bg-emerald-50 text-emerald-700"
+                    >
+                      Active
+                    </Badge>
+                  );
 
                   if (record.clockIn && record.clockOut) {
-                    let diffMs = record.clockOut.getTime() - record.clockIn.getTime();
+                    let diffMs =
+                      record.clockOut.getTime() - record.clockIn.getTime();
                     if (record.breakStart && record.breakEnd) {
-                      diffMs -= (record.breakEnd.getTime() - record.breakStart.getTime());
+                      diffMs -=
+                        record.breakEnd.getTime() - record.breakStart.getTime();
                     }
                     const diffHrs = diffMs / (1000 * 60 * 60);
 
-                    if (diffHrs >= 8) statusElement = <span className="font-semibold text-emerald-600">{diffHrs.toFixed(1)}h (Full)</span>;
-                    else if (diffHrs >= 4) statusElement = <span className="font-semibold text-amber-500">{diffHrs.toFixed(1)}h (Half)</span>;
-                    else statusElement = <span className="font-semibold text-rose-500">{diffHrs.toFixed(1)}h (No Credit)</span>;
+                    if (diffHrs >= 8)
+                      statusElement = (
+                        <span className="font-semibold text-emerald-600">
+                          {diffHrs.toFixed(1)}h (Full)
+                        </span>
+                      );
+                    else if (diffHrs >= 4)
+                      statusElement = (
+                        <span className="font-semibold text-amber-500">
+                          {diffHrs.toFixed(1)}h (Half)
+                        </span>
+                      );
+                    else
+                      statusElement = (
+                        <span className="font-semibold text-rose-500">
+                          {diffHrs.toFixed(1)}h (No Credit)
+                        </span>
+                      );
                   }
 
                   return (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">
-                        {new Date(record.date).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                        {formatDate(record.date)}
                       </TableCell>
-                      <TableCell>{record.clockIn.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</TableCell>
-                      <TableCell>{record.clockOut ? record.clockOut.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-"}</TableCell>
-                      <TableCell className="text-right">{statusElement}</TableCell>
+                      <TableCell>{formatTime(record.clockIn)}</TableCell>
+                      <TableCell>
+                        {record.clockOut ? formatTime(record.clockOut) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {statusElement}
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -131,13 +182,10 @@ async function AttendanceData({ userId }: { userId: string }) {
   );
 }
 
-export default async function AttendancePage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/login");
-
+export default function AttendancePage() {
   return (
     <Suspense fallback={<AttendanceSkeleton />}>
-      <AttendanceData userId={session.user.id} />
+      <AttendanceData />
     </Suspense>
   );
 }

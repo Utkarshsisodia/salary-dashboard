@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { auth } from "@/auth";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,24 +10,29 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, Briefcase, Calendar, ShieldCheck } from "lucide-react";
 import { PasswordForm } from "./PasswordForm";
+import { getCachedSession } from "@/lib/session"; // 1. Standardize import
 
 function ProfileSkeleton() {
   return (
     <div className="space-y-6 pt-2">
       <div className="grid gap-6 md:grid-cols-3">
-        <Skeleton className="h-[300px] w-full rounded-xl md:col-span-1" />
+        <Skeleton className="h-75 w-full rounded-xl md:col-span-1" />
         <div className="md:col-span-2 space-y-6">
-          <Skeleton className="h-[300px] w-full rounded-xl" />
-          <Skeleton className="h-[300px] w-full rounded-xl" />
+          <Skeleton className="h-75 w-full rounded-xl" />
+          <Skeleton className="h-75 w-full rounded-xl" />
         </div>
       </div>
     </div>
   );
 }
 
-async function ProfileData({ userId }: { userId: string }) {
+// 2. Move session fetch inside the component
+async function ProfileData() {
+  const session = await getCachedSession();
+  if (!session?.user) redirect("/login");
+
   const User = await db.query.user.findFirst({
-    where: eq(user.id, userId),
+    where: eq(user.id, session.user.id), // Use session ID directly here
   });
 
   if (!User) redirect("/login");
@@ -110,13 +113,10 @@ async function ProfileData({ userId }: { userId: string }) {
   );
 }
 
-export default async function ProfilePage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/login");
-
+export default function ProfilePage() {
   return (
     <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileData userId={session.user.id} />
+      <ProfileData />
     </Suspense>
   );
 }
