@@ -11,10 +11,14 @@ import { EmployeeRowActions } from "./EmployeeRowActions";
 import { AssignSalaryModal } from "../AssignSalaryModal";
 
 function EmployeesSkeleton() {
-  return <Skeleton className="h-[600px] w-full rounded-xl" />;
+  return <Skeleton className="h-150 w-full rounded-xl" />;
 }
 
-async function EmployeesData({ assignId }: { assignId?: string }) {
+async function EmployeesData({ searchParamsPromise }: { searchParamsPromise: Promise<{ assignId?: string }> }) {
+  
+  const searchParams = await searchParamsPromise;
+  const assignId = searchParams.assignId;
+
   const data = await db.query.user.findMany({
     orderBy: [desc(user.createdAt)],
     with: {
@@ -40,7 +44,7 @@ async function EmployeesData({ assignId }: { assignId?: string }) {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Current Salary</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-12.5"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -81,11 +85,10 @@ async function EmployeesData({ assignId }: { assignId?: string }) {
   );
 }
 
-export default async function EmployeesPage(props: { searchParams: Promise<{ assignId?: string }> }) {
-  const searchParams = await props.searchParams;
+export default function EmployeesPage(props: { searchParams: Promise<{ assignId?: string }> }) {
   return (
     <Suspense fallback={<EmployeesSkeleton />}>
-      <EmployeesData assignId={searchParams.assignId} />
+      <EmployeesData searchParamsPromise={props.searchParams} />
     </Suspense>
   );
 }
