@@ -8,7 +8,8 @@ import {
   Settings,
   Banknote,
   ShieldAlert,
-  Clock, UserCircle
+  Clock, UserCircle,
+  CalendarCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const NAV_CONFIG = {
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Employees", url: "/dashboard/employees", icon: Users },
+      { title: "Register", url: "/dashboard/register", icon: CalendarCheck },
       { title: "Payroll", url: "/dashboard/payroll", icon: Banknote },
       { title: "Audit Logs", url: "/dashboard/audit", icon: ShieldAlert },
       { title: "Settings", url: "/dashboard/settings", icon: Settings },
