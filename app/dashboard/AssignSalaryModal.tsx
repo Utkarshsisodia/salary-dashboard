@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation"; // Added useSearchParams
 import { useAction } from "next-safe-action/hooks";
 import { assignSalary } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,21 @@ export function AssignSalaryModal({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams(); // Hook into the search params
   const [open, setOpen] = useState(true);
   const timerRef = useRef<NodeJS.Timeout>(null);
 
   const handleClose = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      router.push(pathname, { scroll: false });
+      const currentParams = new URLSearchParams(searchParams.toString());
+      
+      currentParams.delete("assignId");
+      
+      const queryString = currentParams.toString();
+      const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      
+      router.push(newUrl, { scroll: false });
     }
   };
 
@@ -56,6 +64,7 @@ export function AssignSalaryModal({
       effectiveDate: formData.get("effectiveDate") as string,
     });
   };
+  
   const isPending = status === "executing";
 
   return (

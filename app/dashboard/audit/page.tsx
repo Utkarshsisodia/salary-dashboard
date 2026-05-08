@@ -1,93 +1,110 @@
 import { Suspense } from "react";
 import { db } from "@/db";
-import { auditLogs } from "@/db/schema";
-import { desc } from "drizzle-orm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { auditLogs, user } from "@/db/schema";
+import { desc, count } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable, ColumnDef } from "@/components/DataTable";
 
 function AuditSkeleton() {
   return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="h-10 w-48 mb-2" />
-        <Skeleton className="h-5 w-96" />
-      </div>
-      <Skeleton className="h-[600px] w-full rounded-xl" />
+    <div className="space-y-4">
+      <Skeleton className="h-150 w-full rounded-xl" />
     </div>
   );
 }
 
-async function AuditData() {
-  const logs = await db.query.auditLogs.findMany({
-    orderBy: [desc(auditLogs.createdAt)],
-    limit: 100,
-    with: { actor: true },
-  });
+const PAGE_SIZE = 15;
 
-  const getBadgeVariant = (actionType: string) => {
-    if (actionType.includes('CREATE') || actionType.includes('ADD')) return 'default';
-    if (actionType.includes('DELETE') || actionType.includes('REMOVE')) return 'destructive';
-    if (actionType.includes('UPDATE') || actionType.includes('ASSIGN')) return 'secondary';
-    return 'outline';
-  };
+const getBadgeVariant = (actionType: string) => {
+  if (actionType.includes("CREATE") || actionType.includes("ADD")) return "default";
+  if (actionType.includes("DELETE") || actionType.includes("REMOVE")) return "destructive";
+  if (actionType.includes("UPDATE") || actionType.includes("ASSIGN")) return "secondary";
+  return "outline";
+};
+
+type AuditLogWithActor = typeof auditLogs.$inferSelect & {
+  actor: typeof user.$inferSelect | null;
+};
+
+const columns: ColumnDef<AuditLogWithActor>[] = [
+  {
+    header: "Date & Time",
+    className: "w-[200px]",
+    cell: (log) => (
+      <span className="text-sm text-muted-foreground whitespace-nowrap">
+        {new Date(log.createdAt).toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })}
+      </span>
+    ),
+  },
+  {
+    header: "Actor",
+    className: "w-[200px] font-medium",
+    cell: (log) => log.actor?.name || "System User",
+  },
+  {
+    header: "Action",
+    className: "w-[150px]",
+    cell: (log) => (
+      <Badge variant={getBadgeVariant(log.actionType)}>
+        {log.actionType.replace("_", " ")}
+      </Badge>
+    ),
+  },
+  {
+    header: "Description",
+    className: "text-muted-foreground",
+    accessorKey: "description",
+  },
+];
+
+// FIXED: We now pass the promise down into the async component
+async function AuditData({ searchParamsPromise }: { searchParamsPromise: Promise<{ page?: string }> }) {
+  // Await the params INSIDE the Suspense boundary
+  const searchParams = await searchParamsPromise;
+  
+  const rawPage = Number(searchParams.page);
+  const page = !isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const [logs, totalCountResult] = await Promise.all([
+    db.query.auditLogs.findMany({
+      orderBy: [desc(auditLogs.createdAt)],
+      limit: PAGE_SIZE,
+      offset: offset,
+      with: { actor: true },
+    }),
+    db.select({ count: count() }).from(auditLogs),
+  ]);
+
+  const totalRecords = totalCountResult[0].count;
+  const totalPages = Math.ceil(totalRecords / PAGE_SIZE) || 1;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Audit Logs</h2>
-        <p className="text-muted-foreground">A chronological record of administrative actions across the platform.</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Activity History</CardTitle>
-          <CardDescription>Showing the 100 most recent system events.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">Date & Time</TableHead>
-                <TableHead className="w-[200px]">Actor</TableHead>
-                <TableHead className="w-[150px]">Action</TableHead>
-                <TableHead>Description</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                    No activity logs found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleString('en-IN', {
-                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
-                      })}
-                    </TableCell>
-                    <TableCell className="font-medium">{log.actor?.name || 'System User'}</TableCell>
-                    <TableCell><Badge variant={getBadgeVariant(log.actionType)}>{log.actionType.replace('_', ' ')}</Badge></TableCell>
-                    <TableCell className="text-muted-foreground">{log.description}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+    <DataTable
+      data={logs}
+      columns={columns}
+      currentPage={page}
+      totalPages={totalPages}
+      basePath="/dashboard/audit"
+    />
   );
 }
 
-export default function AuditLogsPage() {
+// FIXED: This top-level page is now completely synchronous and non-blocking
+export default function AuditLogsPage(props: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   return (
     <Suspense fallback={<AuditSkeleton />}>
-      <AuditData />
+      <AuditData searchParamsPromise={props.searchParams} />
     </Suspense>
   );
 }
