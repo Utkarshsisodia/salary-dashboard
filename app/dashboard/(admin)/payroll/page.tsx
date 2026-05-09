@@ -1,33 +1,16 @@
-import { Suspense } from "react";
 import { db } from "@/db";
 import { user, salaries } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatINR } from "@/lib/utils";
 import { Calculator, ReceiptText } from "lucide-react";
 import { PayrollActionButtons } from "./PayrollActionButtons";
+import { requireAdmin } from "@/lib/session";
 
-function PayrollSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-end gap-2 mb-2">
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-      </div>
-      <Skeleton className="h-[400px] w-full rounded-xl" />
-    </div>
-  );
-}
-
-async function PayrollData() {
+export default async function PayrollData() {
+  await requireAdmin();
   const data = await db.query.user.findMany({
     with: {
       salaries: {
@@ -136,13 +119,5 @@ async function PayrollData() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function PayrollPage() {
-  return (
-    <Suspense fallback={<PayrollSkeleton />}>
-      <PayrollData />
-    </Suspense>
   );
 }

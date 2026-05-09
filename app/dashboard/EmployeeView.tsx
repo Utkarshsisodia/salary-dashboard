@@ -32,7 +32,7 @@ export function EmployeeView({ salaries }: { salaries: Salary[] }) {
             if (value) setSortOrder(value as "desc" | "asc");
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-45">
             <SelectValue placeholder="Sort by Date" />
           </SelectTrigger>
           <SelectContent>

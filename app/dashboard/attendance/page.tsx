@@ -1,43 +1,47 @@
-import { Suspense } from "react";
 import { db, withRLS } from "@/db";
 import { attendance } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceActionCard } from "./AttendanceActionCard";
-import { getCachedSession } from "@/lib/session"; // 1. Import your cached session utility!
-import { calculateHoursWorked, formatDate, formatTime, isCurrentMonth } from "@/lib/date-utils";
+import { getCachedSession } from "@/lib/session";
+import {
+  calculateHoursWorked,
+  formatDate,
+  formatTime,
+  isCurrentMonth,
+} from "@/lib/date-utils";
 
-function AttendanceSkeleton() {
-  // ... (keep your existing skeleton code)
-  return (
-    <div className="space-y-6 pt-2">
-      <div className="grid gap-6 md:grid-cols-2">
-        <Skeleton className="h-64 w-full rounded-xl" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-      <Skeleton className="h-[400px] w-full rounded-xl" />
-    </div>
-  );
-}
-
-// 2. Fetch the session INSIDE the Suspense-wrapped component
-async function AttendanceData() {
+export default async function AttendancePage() {
   const session = await getCachedSession();
   if (!session?.user) redirect("/login");
-  
-  const userId = session.user.id;
-  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
-  const records = await withRLS<typeof attendance.$inferSelect[]>(
+  const userId = session.user.id;
+  const todayStr = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+
+  const records = await withRLS<(typeof attendance.$inferSelect)[]>(
     userId,
     db.query.attendance.findMany({
       where: eq(attendance.employeeId, userId),
       orderBy: [desc(attendance.date)],
-    })
+    }),
   );
 
   const todayRecord = records.find((r) => r.date === todayStr);
@@ -92,12 +96,6 @@ async function AttendanceData() {
       </div>
 
       <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Attendance Ledger</CardTitle>
-          <CardDescription>
-            A chronological record of your recent punches.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -179,13 +177,5 @@ async function AttendanceData() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function AttendancePage() {
-  return (
-    <Suspense fallback={<AttendanceSkeleton />}>
-      <AttendanceData />
-    </Suspense>
   );
 }

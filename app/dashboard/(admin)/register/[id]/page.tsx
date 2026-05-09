@@ -1,28 +1,16 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
 import { user, attendance } from "@/db/schema";
 import { and, eq, like } from "drizzle-orm";
-import { getCachedSession } from "@/lib/session";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { getCachedSession, requireAdmin } from "@/lib/session";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, ColumnDef } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, UserCircle, Clock } from "lucide-react";
 import { formatTime, calculateHoursWorked } from "@/lib/date-utils";
 
-function IndividualRegisterSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-32 w-full rounded-xl" />
-      <Skeleton className="h-125 w-full rounded-xl" />
-    </div>
-  );
-}
-
-// Data structure for our generated calendar rows
 type DailyRecord = {
   dateStr: string;
   dayNum: number;
@@ -31,14 +19,18 @@ type DailyRecord = {
   record: typeof attendance.$inferSelect | undefined;
 };
 
-async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
-  const session = await getCachedSession();
-  if (session?.user?.role !== "admin") redirect("/dashboard");
+// 1. Add searchParams to the Page Props
+export default async function IndividualRegisterPage(props: { 
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>; 
+}) {
+  await requireAdmin();
+  const { id: employeeId } = await props.params;
+  const searchParams = await props.searchParams;
+  
+  // 3. Fallback to "1" if someone visits this link directly
+  const fromPage = searchParams.from || "1";
 
-  // Next.js 15 requirement: Await params
-  const { id: employeeId } = await paramsPromise;
-
-  // 1. Fetch the Target Employee
   const targetEmployee = await db.query.user.findFirst({
     where: eq(user.id, employeeId),
   });
@@ -47,20 +39,19 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-bold">Employee Not Found</h2>
-        <Button variant="link" nativeButton={false} render={<Link href="/dashboard/register">Go Back</Link>} />
+        {/* Update fallback back button here too */}
+        <Button variant="link" nativeButton={false} render={<Link href={`/dashboard/register?page=${fromPage}`}>Go Back</Link>} />
       </div>
     );
   }
 
-  // 2. Setup Current Month Parameters
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonthNum = now.getMonth(); // 0-indexed for Date math
+  const currentMonthNum = now.getMonth(); 
   const currentMonthStr = (currentMonthNum + 1).toString().padStart(2, "0");
   const monthPrefix = `${currentYear}-${currentMonthStr}-`;
   const daysInMonth = new Date(currentYear, currentMonthNum + 1, 0).getDate();
 
-  // 3. Fetch ONLY this employee's attendance for the current month
   const monthlyAttendance = await db.query.attendance.findMany({
     where: and(
       eq(attendance.employeeId, employeeId),
@@ -68,7 +59,6 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
     ),
   });
 
-  // 4. Generate a row for EVERY day of the month (Standard UX pattern)
   const calendarRows: DailyRecord[] = Array.from({ length: daysInMonth }, (_, i) => {
     const dayNum = i + 1;
     const dayStr = dayNum.toString().padStart(2, "0");
@@ -82,10 +72,8 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
     return { dateStr: dateQueryStr, dayNum, dayOfWeek, isWeekend, record };
   });
 
-  // Calculate some basic stats
   const totalDaysPresent = monthlyAttendance.filter((a) => a.clockIn).length;
 
-  // 5. Define Columns for the Detailed View
   const columns: ColumnDef<DailyRecord>[] = [
     {
       header: "Date",
@@ -101,7 +89,6 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
       className: "w-[150px]",
       cell: (row) => {
         if (row.record?.clockIn) {
-          // If they haven't clocked out yet but have clocked in
           if (!row.record.clockOut) return <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">In Progress</Badge>;
           
           const hrs = calculateHoursWorked(row.record.clockIn, row.record.clockOut, row.record.breakStart, row.record.breakEnd);
@@ -112,7 +99,6 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
         
         if (row.isWeekend) return <span className="text-xs text-muted-foreground italic">Weekend</span>;
         
-        // If it's a past date with no record
         const isPastDate = new Date(row.dateStr) < new Date(new Date().setHours(0,0,0,0));
         return isPastDate ? <Badge variant="destructive">Absent</Badge> : <span className="text-xs text-zinc-400">-</span>;
       },
@@ -140,9 +126,9 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
 
   return (
     <div className="space-y-6">
-      {/* Navigation & Header */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" nativeButton={false} render={<Link href="/dashboard/register" />}>
+        {/* 4. Update the Back button to dynamically use the fromPage variable */}
+        <Button variant="outline" size="icon" nativeButton={false} render={<Link href={`/dashboard/register?page=${fromPage}`} />}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="space-y-0.5">
@@ -155,7 +141,6 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
         </div>
       </div>
 
-      {/* Employee Context Summary */}
       <Card className="bg-zinc-50 border-zinc-200/60 shadow-sm">
         <CardContent className="p-6 flex items-center gap-6">
           <div className="h-16 w-16 rounded-full bg-primary/10 text-primary flex items-center justify-center">
@@ -174,7 +159,6 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
         </CardContent>
       </Card>
 
-      {/* Daily Ledger Table */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -187,13 +171,5 @@ async function IndividualRegisterData({ paramsPromise }: { paramsPromise: Promis
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function IndividualRegisterPage(props: { params: Promise<{ id: string }> }) {
-  return (
-    <Suspense fallback={<IndividualRegisterSkeleton />}>
-      <IndividualRegisterData paramsPromise={props.params} />
-    </Suspense>
   );
 }

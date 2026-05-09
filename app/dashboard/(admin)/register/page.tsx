@@ -3,53 +3,19 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { desc, count } from "drizzle-orm";
-import { getCachedSession } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, ColumnDef } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarSearch } from "lucide-react";
 import Link from "next/link";
-
+import Loading from "./loading"
 const PAGE_SIZE = 10;
-
-function RegisterIndexSkeleton() {
-  return (
-    <Card className="shadow-sm">
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-6 w-64" />
-        <Skeleton className="h-4 w-96" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-              <div className="space-y-2 w-1/3">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-32 rounded-xl" />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 type EmployeeRow = typeof user.$inferSelect;
 
-const columns: ColumnDef<EmployeeRow>[] = [
+// 1. Change columns to a function that accepts the currentPage
+const getColumns = (currentPage: number): ColumnDef<EmployeeRow>[] => [
   {
     header: "Employee",
     cell: (emp) => (
@@ -89,7 +55,8 @@ const columns: ColumnDef<EmployeeRow>[] = [
         className="text-primary hover:text-primary/80"
         nativeButton={false}
         render={
-          <Link href={`/dashboard/register/${emp.id}`}>
+          // 2. Append the current page to the URL as a `from` parameter
+          <Link href={`/dashboard/register/${emp.id}?from=${currentPage}`}>
             <CalendarSearch className="mr-2 h-4 w-4" />
             View Register
           </Link>
@@ -97,18 +64,14 @@ const columns: ColumnDef<EmployeeRow>[] = [
       />
     ),
   },
-];
+];  
 
-async function RegisterIndexData({ searchParamsPromise }: { searchParamsPromise: Promise<{ page?: string }> }) {
-  const session = await getCachedSession();
-  if (session?.user?.role !== "admin") redirect("/dashboard");
-
-  const searchParams = await searchParamsPromise;
+async function RegisterIndexData({ searchParams }: { searchParams: { page?: string } }) {
+  await requireAdmin();
   const rawPage = Number(searchParams.page);
   const page = !isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Run the data and count queries concurrently
   const [data, totalCountResult] = await Promise.all([
     db.query.user.findMany({
       orderBy: [desc(user.createdAt)],
@@ -132,7 +95,7 @@ async function RegisterIndexData({ searchParamsPromise }: { searchParamsPromise:
       <CardContent>
         <DataTable
           data={data}
-          columns={columns}
+          columns={getColumns(page)} // 3. Pass the current page into the column generator
           currentPage={page}
           totalPages={totalPages}
           basePath="/dashboard/register"
@@ -142,10 +105,21 @@ async function RegisterIndexData({ searchParamsPromise }: { searchParamsPromise:
   );
 }
 
+async function RegisterDataLoader({ searchParamsPromise }: { searchParamsPromise: Promise<{ page?: string }> }) {
+  const searchParams = await searchParamsPromise;
+  const currentPage = searchParams.page || "1";
+
+  return (
+    <Suspense key={currentPage} fallback={<Loading />}>
+      <RegisterIndexData searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
 export default function RegisterIndexPage(props: { searchParams: Promise<{ page?: string }> }) {
   return (
-    <Suspense fallback={<RegisterIndexSkeleton />}>
-      <RegisterIndexData searchParamsPromise={props.searchParams} />
+    <Suspense fallback={<Loading />}>
+      <RegisterDataLoader searchParamsPromise={props.searchParams} />
     </Suspense>
   );
 }

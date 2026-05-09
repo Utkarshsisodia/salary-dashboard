@@ -3,51 +3,9 @@ import { db } from "@/db";
 import { auditLogs, user } from "@/db/schema";
 import { desc, count } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, ColumnDef } from "@/components/DataTable";
-
-function AuditSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-        {/* Mock Table Header */}
-        <div className="flex items-center p-3 border-b bg-zinc-50/50 dark:bg-zinc-900/50 gap-4">
-          <Skeleton className="h-4 w-50" />
-          <Skeleton className="h-4 w-50" />
-          <Skeleton className="h-4 w-37.5" />
-          <Skeleton className="h-4 w-full max-w-75" />
-        </div>
-        {/* Mock Table Rows (PAGE_SIZE = 15) */}
-        <div className="divide-y">
-          {Array.from({ length: 15 }).map((_, i) => (
-            <div key={i} className="flex items-center p-3 gap-4">
-              <div className="w-50">
-                <Skeleton className="h-4 w-32" />
-              </div>
-              <div className="w-50">
-                <Skeleton className="h-4 w-40" />
-              </div>
-              <div className="w-37.5">
-                <Skeleton className="h-5 w-24 rounded-3xl" />
-              </div>
-              <div className="flex-1">
-                <Skeleton className="h-4 w-full max-w-100" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Mock Pagination */}
-      <div className="flex items-center justify-between px-2">
-        <Skeleton className="h-4 w-24" />
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-20 rounded-4xl" />
-          <Skeleton className="h-8 w-20 rounded-4xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
+import Loading from './loading'
+import { requireAdmin } from "@/lib/session";
 
 const PAGE_SIZE = 15;
 
@@ -100,11 +58,8 @@ const columns: ColumnDef<AuditLogWithActor>[] = [
   },
 ];
 
-// FIXED: We now pass the promise down into the async component
-async function AuditData({ searchParamsPromise }: { searchParamsPromise: Promise<{ page?: string }> }) {
-  // Await the params INSIDE the Suspense boundary
-  const searchParams = await searchParamsPromise;
-  
+async function AuditData({ searchParams }: { searchParams: { page?: string } }) {
+  await requireAdmin();
   const rawPage = Number(searchParams.page);
   const page = !isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
   const offset = (page - 1) * PAGE_SIZE;
@@ -133,13 +88,23 @@ async function AuditData({ searchParamsPromise }: { searchParamsPromise: Promise
   );
 }
 
-// FIXED: This top-level page is now completely synchronous and non-blocking
+async function AuditDataLoader({ searchParamsPromise }: { searchParamsPromise: Promise<{ page?: string }> }) {
+  const searchParams = await searchParamsPromise;
+  const currentPage = searchParams.page || "1";
+
+  return (
+    <Suspense key={currentPage} fallback={<Loading />}>
+      <AuditData searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
 export default function AuditLogsPage(props: {
   searchParams: Promise<{ page?: string }>;
 }) {
   return (
-    <Suspense fallback={<AuditSkeleton />}>
-      <AuditData searchParamsPromise={props.searchParams} />
+    <Suspense fallback={<Loading />}>
+      <AuditDataLoader searchParamsPromise={props.searchParams} />
     </Suspense>
   );
 }

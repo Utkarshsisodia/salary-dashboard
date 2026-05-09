@@ -1,38 +1,24 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { eq, desc, type InferSelectModel } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import {
   user as userSchema,
   salaries as salariesSchema,
   attendance as attendanceSchema,
 } from "@/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmployeeView } from "./EmployeeView";
+import { EmployeeView } from "../EmployeeView";
 import { formatINR } from "@/lib/utils";
-import { AddEmployeeForm } from "./AddEmployeeForm";
-import { AssignSalaryModal } from "./AssignSalaryModal";
-import { CurrentMonthSalary } from "./CurrentMonthSalary";
+import { AddEmployeeForm } from "../AddEmployeeForm";
+import { AssignSalaryModal } from "../AssignSalaryModal";
+import { CurrentMonthSalary } from "../CurrentMonthSalary";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getCachedSession } from "@/lib/session";
+import DashboardLoading from "./loading";
 
-type Salary = InferSelectModel<typeof salariesSchema>;
-
-// Skeleton for instant loading state
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-      </div>
-      <Skeleton className="h-100 w-full rounded-xl" />
-    </div>
-  );
-}
+type Salary = typeof salariesSchema.$inferSelect;
 
 async function AdminDashboardData({ assignId }: { assignId?: string }) {
   const adminData = await db.query.user.findMany({
@@ -154,10 +140,9 @@ async function DashboardContent({ searchParamsPromise }: { searchParamsPromise: 
   const searchParams = await searchParamsPromise;
   const session = await getCachedSession();
   
-  // 1. Explicitly catch null sessions to prevent rendering crashes
   if (!session?.user) redirect("/login"); 
 
-  const { id, role } = session.user; // 2. No more exclamation mark (!) needed!
+  const { id, role } = session.user; 
 
   if (role === "admin") {
     return <AdminDashboardData assignId={searchParams.assignId} />;
@@ -166,10 +151,9 @@ async function DashboardContent({ searchParamsPromise }: { searchParamsPromise: 
   return <EmployeeDashboardData employeeId={id} />;
 }
 
-// 2. The top-level page is now completely clean and instantly returns the Suspense boundary
 export default function DashboardPage(props: { searchParams: Promise<{ assignId?: string }> }) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
+    <Suspense fallback={<DashboardLoading />}>
       <DashboardContent searchParamsPromise={props.searchParams} />
     </Suspense>
   );

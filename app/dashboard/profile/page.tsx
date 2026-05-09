@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,27 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Mail, Briefcase, Calendar, ShieldCheck } from "lucide-react";
 import { PasswordForm } from "./PasswordForm";
 import { getCachedSession } from "@/lib/session"; // 1. Standardize import
 
-function ProfileSkeleton() {
-  return (
-    <div className="space-y-6 pt-2">
-      <div className="grid gap-6 md:grid-cols-3">
-        <Skeleton className="h-75 w-full rounded-xl md:col-span-1" />
-        <div className="md:col-span-2 space-y-6">
-          <Skeleton className="h-75 w-full rounded-xl" />
-          <Skeleton className="h-75 w-full rounded-xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // 2. Move session fetch inside the component
-async function ProfileData() {
+export default async function ProfileData() {
   const session = await getCachedSession();
   if (!session?.user) redirect("/login");
 
@@ -110,13 +94,5 @@ async function ProfileData() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function ProfilePage() {
-  return (
-    <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileData />
-    </Suspense>
   );
 }
